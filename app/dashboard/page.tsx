@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 
 export default async function DashboardPage() {
   const user = await getCurrentVendorUser();
-  if (!user) redirect("/");
+  if (!user) redirect("/login");
 
   return (
     <main className="flex flex-1 flex-col bg-zinc-50">

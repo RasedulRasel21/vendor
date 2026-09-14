@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { findInvite } from "@/lib/invite";
 import { AcceptInviteForm } from "./accept-form";
 
@@ -51,6 +52,12 @@ export default async function InvitePage({ params }: PageProps<"/invite/[token]"
               {PROBLEMS[invite.status].heading}
             </h1>
             <p className="mt-2 text-sm text-zinc-600">{PROBLEMS[invite.status].body}</p>
+            <p className="mt-6 text-sm text-zinc-600">
+              Already set up your account?{" "}
+              <Link href="/login" className="font-medium text-zinc-900 underline">
+                Sign in
+              </Link>
+            </p>
           </>
         )}
       </div>

@@ -5,5 +5,5 @@ import { endSession } from "@/lib/session";
 
 export async function signOut() {
   await endSession();
-  redirect("/");
+  redirect("/login");
 }
