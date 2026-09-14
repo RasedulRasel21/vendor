@@ -21,6 +21,9 @@ export default async function PortalLayout({ children }: { children: React.React
               <Link href="/products" className="hover:text-zinc-900">
                 Products
               </Link>
+              <Link href="/settings" className="hover:text-zinc-900">
+                Settings
+              </Link>
             </nav>
           </div>
           <form action={signOut}>

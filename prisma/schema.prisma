@@ -29,38 +29,48 @@ model Session {
 }
 
 model ShopSettings {
-  shop                  String    @id
-  commissionPercent     Decimal   @default(10) @db.Decimal(5, 2)
-  commissionFixed       Decimal   @default(0) @db.Decimal(12, 2)
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime
-  setupGuideDismissedAt DateTime?
-  currencyCode          String?
-  collectionsSyncedAt   DateTime?
+  shop                    String    @id
+  commissionPercent       Decimal   @default(10) @db.Decimal(5, 2)
+  commissionFixed         Decimal   @default(0) @db.Decimal(12, 2)
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime
+  setupGuideDismissedAt   DateTime?
+  currencyCode            String?
+  collectionsSyncedAt     DateTime?
+  codRulesCustomizationId String?
 }
 
 model Vendor {
-  id                String              @id
-  shop              String
-  name              String
-  handle            String
-  email             String
-  phone             String?
-  status            VendorStatus        @default(PENDING)
-  statusReason      String?
-  notes             String?
-  approvedAt        DateTime?
-  createdAt         DateTime            @default(now())
-  updatedAt         DateTime
-  commissionFixed   Decimal?            @db.Decimal(12, 2)
-  commissionPercent Decimal?            @db.Decimal(5, 2)
-  codEnabled        Boolean             @default(true)
-  codMaxOrderValue  Decimal?            @db.Decimal(12, 2)
-  shippingMode      ShippingMode        @default(VENDOR_SHIPS)
-  ProductSubmission ProductSubmission[]
-  VendorActivity    VendorActivity[]
-  VendorProduct     VendorProduct[]
-  VendorUser        VendorUser[]
+  id                  String                @id
+  shop                String
+  name                String
+  handle              String
+  email               String
+  phone               String?
+  status              VendorStatus          @default(PENDING)
+  statusReason        String?
+  notes               String?
+  approvedAt          DateTime?
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime
+  commissionFixed     Decimal?              @db.Decimal(12, 2)
+  commissionPercent   Decimal?              @db.Decimal(5, 2)
+  codEnabled          Boolean               @default(true)
+  codMaxOrderValue    Decimal?              @db.Decimal(12, 2)
+  shippingMode        ShippingMode          @default(VENDOR_SHIPS)
+  addressLine1        String?
+  addressLine2        String?
+  city                String?
+  countryCode         String?
+  payoutDetails       Json?
+  payoutMethod        PayoutMethod?
+  payoutUpdatedAt     DateTime?
+  postalCode          String?
+  ProductSubmission   ProductSubmission[]
+  VendorActivity      VendorActivity[]
+  VendorChangeRequest VendorChangeRequest[]
+  VendorProduct       VendorProduct[]
+  VendorUser          VendorUser[]
 
   @@unique([shop, email])
   @@unique([shop, handle])
@@ -172,6 +182,25 @@ model ShopCollection {
   @@index([shop, title])
 }
 
+model VendorChangeRequest {
+  id            String              @id
+  shop          String
+  vendorId      String
+  type          ChangeRequestType
+  status        ChangeRequestStatus @default(PENDING)
+  requested     Json
+  previous      Json?
+  requestedById String?
+  reviewNote    String?
+  reviewedAt    DateTime?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime
+  Vendor        Vendor              @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+
+  @@index([shop, status])
+  @@index([vendorId, type, status])
+}
+
 enum ShippingMode {
   VENDOR_SHIPS
   STORE_SHIPS
@@ -200,4 +229,22 @@ enum ProductSubmissionStatus {
   PENDING
   APPROVED
   REJECTED
+}
+
+enum ChangeRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum ChangeRequestType {
+  PAYOUT
+}
+
+enum PayoutMethod {
+  BANK
+  BKASH
+  NAGAD
+  ROCKET
 }
