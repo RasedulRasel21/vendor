@@ -1,0 +1,142 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_URL_UNPOOLED")
+}
+
+model Session {
+  id                  String    @id
+  shop                String
+  state               String
+  isOnline            Boolean   @default(false)
+  scope               String?
+  expires             DateTime?
+  accessToken         String
+  userId              BigInt?
+  firstName           String?
+  lastName            String?
+  email               String?
+  accountOwner        Boolean   @default(false)
+  locale              String?
+  collaborator        Boolean?  @default(false)
+  emailVerified       Boolean?  @default(false)
+  refreshToken        String?
+  refreshTokenExpires DateTime?
+}
+
+model ShopSettings {
+  shop                  String    @id
+  commissionPercent     Decimal   @default(10) @db.Decimal(5, 2)
+  commissionFixed       Decimal   @default(0) @db.Decimal(12, 2)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime
+  setupGuideDismissedAt DateTime?
+}
+
+model Vendor {
+  id                String           @id
+  shop              String
+  name              String
+  handle            String
+  email             String
+  phone             String?
+  status            VendorStatus     @default(PENDING)
+  statusReason      String?
+  notes             String?
+  approvedAt        DateTime?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime
+  commissionFixed   Decimal?         @db.Decimal(12, 2)
+  commissionPercent Decimal?         @db.Decimal(5, 2)
+  codEnabled        Boolean          @default(true)
+  codMaxOrderValue  Decimal?         @db.Decimal(12, 2)
+  shippingMode      ShippingMode     @default(VENDOR_SHIPS)
+  VendorActivity    VendorActivity[]
+  VendorProduct     VendorProduct[]
+  VendorUser        VendorUser[]
+
+  @@unique([shop, email])
+  @@unique([shop, handle])
+  @@index([shop, status])
+}
+
+model VendorActivity {
+  id        String   @id
+  vendorId  String
+  action    String
+  actor     String
+  details   Json?
+  createdAt DateTime @default(now())
+  Vendor    Vendor   @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+
+  @@index([vendorId, createdAt])
+}
+
+model VendorProduct {
+  id        String   @id
+  shop      String
+  vendorId  String
+  productId String
+  createdAt DateTime @default(now())
+  Vendor    Vendor   @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+
+  @@unique([shop, productId])
+  @@index([vendorId])
+}
+
+model VendorSession {
+  id           String     @id
+  tokenHash    String     @unique
+  vendorUserId String
+  expiresAt    DateTime
+  createdAt    DateTime   @default(now())
+  VendorUser   VendorUser @relation(fields: [vendorUserId], references: [id], onDelete: Cascade)
+
+  @@index([vendorUserId])
+}
+
+model VendorUser {
+  id              String           @id
+  vendorId        String
+  email           String
+  name            String?
+  role            VendorUserRole   @default(OWNER)
+  status          VendorUserStatus @default(INVITED)
+  inviteTokenHash String?          @unique
+  inviteExpiresAt DateTime?
+  lastLoginAt     DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime
+  passwordHash    String?
+  VendorSession   VendorSession[]
+  Vendor          Vendor           @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+
+  @@unique([vendorId, email])
+}
+
+enum ShippingMode {
+  VENDOR_SHIPS
+  STORE_SHIPS
+}
+
+enum VendorStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  REJECTED
+}
+
+enum VendorUserRole {
+  OWNER
+  STAFF
+}
+
+enum VendorUserStatus {
+  INVITED
+  ACTIVE
+  DISABLED
+}
