@@ -17,7 +17,12 @@ export default async function NewProductPage() {
         ← Products
       </Link>
       <h1 className="mb-4 mt-2 text-2xl font-semibold text-zinc-900">Add product</h1>
-      <ProductEditor submissionId={null} initialDraft={emptyDraft()} shopDomain={user.Vendor.shop} />
+      <ProductEditor
+        submissionId={null}
+        initialDraft={emptyDraft()}
+        shopDomain={user.Vendor.shop}
+        vendorId={user.vendorId}
+      />
     </div>
   );
 }

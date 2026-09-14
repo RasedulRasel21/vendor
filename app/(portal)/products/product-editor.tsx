@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/editor/card";
-import { MediaLinks } from "@/components/editor/media-links";
+import { MediaUploader } from "@/components/editor/media-uploader";
 import { RichTextEditor } from "@/components/editor/rich-text-editor";
 import { SeoEditor } from "@/components/editor/seo-editor";
 import { TagInput } from "@/components/editor/tag-input";
@@ -17,12 +17,15 @@ export function ProductEditor({
   submissionId,
   initialDraft,
   shopDomain,
+  vendorId,
 }: {
   submissionId: string | null;
   initialDraft: ProductDraft;
   shopDomain: string;
+  vendorId: string;
 }) {
   const [draft, setDraft] = useState(initialDraft);
+  const [uploading, setUploading] = useState(false);
   const [state, formAction, pending] = useActionState(
     saveProduct.bind(null, submissionId),
     initialState,
@@ -54,14 +57,20 @@ export function ProductEditor({
         }`}
       >
         <p className="text-sm font-medium">
-          {pending ? "Saving…" : dirty ? "Unsaved changes" : "No unsaved changes"}
+          {pending
+            ? "Saving…"
+            : uploading
+              ? "Uploading images…"
+              : dirty
+                ? "Unsaved changes"
+                : "No unsaved changes"}
         </p>
         <div className="flex gap-2">
           <button
             type="submit"
             name="intent"
             value="draft"
-            disabled={pending}
+            disabled={pending || uploading}
             className={`rounded-lg border px-3 py-1.5 text-sm font-semibold disabled:opacity-60 ${
               dirty
                 ? "border-zinc-600 text-white hover:bg-zinc-800"
@@ -74,7 +83,7 @@ export function ProductEditor({
             type="submit"
             name="intent"
             value="submit"
-            disabled={pending}
+            disabled={pending || uploading}
             className={`rounded-lg px-3 py-1.5 text-sm font-semibold disabled:opacity-60 ${
               dirty ? "bg-white text-zinc-900 hover:bg-zinc-100" : "bg-zinc-900 text-white hover:bg-zinc-700"
             }`}
@@ -126,9 +135,13 @@ export function ProductEditor({
           </Card>
 
           <Card title="Media">
-            <MediaLinks
+            <MediaUploader
+              vendorId={vendorId}
               urls={draft.imageUrls}
-              onChange={(urls) => update("imageUrls", urls)}
+              onChange={(updateUrls) =>
+                setDraft((current) => ({ ...current, imageUrls: updateUrls(current.imageUrls) }))
+              }
+              onUploadingChange={setUploading}
               error={errors.imageUrls}
             />
           </Card>

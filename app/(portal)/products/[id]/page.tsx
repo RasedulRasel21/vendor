@@ -59,6 +59,7 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
           submissionId={submission.id}
           initialDraft={draft}
           shopDomain={user.Vendor.shop}
+          vendorId={user.vendorId}
         />
       ) : (
         <div className="max-w-3xl space-y-4 rounded-xl border border-zinc-200 bg-white p-6 text-sm shadow-sm">
