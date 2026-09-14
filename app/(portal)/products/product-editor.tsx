@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/editor/card";
-import { MediaUploader } from "@/components/editor/media-uploader";
+import { MediaField } from "@/components/editor/media-field";
 import { RichTextEditor } from "@/components/editor/rich-text-editor";
 import { SeoEditor } from "@/components/editor/seo-editor";
 import { TagInput } from "@/components/editor/tag-input";
@@ -135,7 +135,7 @@ export function ProductEditor({
           </Card>
 
           <Card title="Media">
-            <MediaUploader
+            <MediaField
               vendorId={vendorId}
               urls={draft.imageUrls}
               onChange={(updateUrls) =>
