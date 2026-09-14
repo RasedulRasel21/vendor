@@ -162,6 +162,7 @@ export function ProductEditor({
                   labelledBy="description-label"
                   value={draft.descriptionHtml}
                   onChange={(html) => update("descriptionHtml", html)}
+                  vendorId={vendorId}
                   placeholder="Describe the product: materials, fit, care, what makes it special…"
                   invalid={Boolean(errors.descriptionHtml)}
                 />
