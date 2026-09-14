@@ -36,6 +36,7 @@ model ShopSettings {
   updatedAt             DateTime
   setupGuideDismissedAt DateTime?
   currencyCode          String?
+  collectionsSyncedAt   DateTime?
 }
 
 model Vendor {
@@ -156,6 +157,19 @@ model ProductSubmission {
 
   @@index([shop, status])
   @@index([vendorId, status])
+}
+
+model ShopCollection {
+  id           String   @id
+  shop         String
+  collectionId String
+  title        String
+  handle       String
+  imageUrl     String?
+  syncedAt     DateTime @default(now())
+
+  @@unique([shop, collectionId])
+  @@index([shop, title])
 }
 
 enum ShippingMode {

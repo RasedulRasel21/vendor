@@ -36,6 +36,8 @@ export type ProductDraft = {
   descriptionHtml: string;
   productType: string;
   tags: string[];
+  // Shopify GIDs of the store's manual collections the product should be added to.
+  collectionIds: string[];
   // Kept for older submissions; each variant now has its own trackInventory.
   trackInventory: boolean;
   options: ProductOption[];
@@ -101,6 +103,7 @@ export function emptyDraft(): ProductDraft {
     descriptionHtml: "",
     productType: "",
     tags: [],
+    collectionIds: [],
     trackInventory: true,
     options: [],
     variants: [emptyVariant()],
@@ -244,6 +247,7 @@ export type SubmissionRecord = {
   descriptionHtml: string | null;
   productType: string | null;
   tags: string[];
+  collectionIds: string[];
   trackInventory: boolean;
   options: unknown;
   variants: unknown;
@@ -302,6 +306,7 @@ export function draftFromSubmission(submission: SubmissionRecord): ProductDraft 
     descriptionHtml: submission.descriptionHtml ?? plainTextToHtml(submission.description),
     productType: submission.productType ?? "",
     tags: submission.tags,
+    collectionIds: submission.collectionIds,
     trackInventory: submission.trackInventory,
     options,
     variants,

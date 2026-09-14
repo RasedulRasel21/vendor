@@ -11,10 +11,14 @@ export const metadata: Metadata = {
 
 export default async function NewProductPage() {
   const user = await requireVendorUser();
-  const settings = await db.shopSettings.findUnique({
-    where: { shop: user.Vendor.shop },
-    select: { currencyCode: true },
-  });
+  const [settings, collections] = await Promise.all([
+    db.shopSettings.findUnique({ where: { shop: user.Vendor.shop }, select: { currencyCode: true } }),
+    db.shopCollection.findMany({
+      where: { shop: user.Vendor.shop },
+      orderBy: { title: "asc" },
+      select: { collectionId: true, title: true, imageUrl: true },
+    }),
+  ]);
 
   return (
     <div>
@@ -28,6 +32,7 @@ export default async function NewProductPage() {
         shopDomain={user.Vendor.shop}
         vendorId={user.vendorId}
         currencyCode={settings?.currencyCode ?? "USD"}
+        collections={collections}
       />
     </div>
   );

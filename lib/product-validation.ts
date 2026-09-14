@@ -19,6 +19,7 @@ export type ProductData = {
   descriptionHtml: string | null;
   productType: string | null;
   tags: string[];
+  collectionIds: string[];
   trackInventory: boolean;
   options: ProductOption[];
   variants: StoredVariant[];
@@ -41,6 +42,7 @@ const draftSchema = z.object({
   descriptionHtml: text(200000),
   productType: text(2000),
   tags: z.array(text(2000)).max(1000),
+  collectionIds: z.array(text(200)).max(1000),
   trackInventory: z.boolean(),
   options: z.array(z.object({ name: text(2000), values: z.array(text(2000)).max(1000) })).max(20),
   variants: z
@@ -71,6 +73,7 @@ const draftSchema = z.object({
   handle: text(2000),
 });
 
+const MAX_COLLECTIONS = 250;
 const AMOUNT = /^\d{1,10}(\.\d{1,2})?$/;
 const QUANTITY = /^\d{1,7}$/;
 const WEIGHT = /^\d{1,7}(\.\d{1,3})?$/;
@@ -125,6 +128,10 @@ export function validateProduct(
   const tags = unique(draft.tags.map((tag) => tag.trim()).filter(Boolean));
   if (tags.length > 250) errors.tags = "Use up to 250 tags";
   else if (tags.some((tag) => tag.length > 255)) errors.tags = "Keep each tag to 255 characters or fewer";
+
+  // Whether each collection still exists in the store is checked when saving.
+  const collectionIds = [...new Set(draft.collectionIds)].filter((id) => id.startsWith("gid://shopify/Collection/"));
+  if (collectionIds.length > MAX_COLLECTIONS) errors.collectionIds = `Add the product to up to ${MAX_COLLECTIONS} collections`;
 
   const imageUrls = unique(draft.imageUrls.map((url) => url.trim()).filter(Boolean));
   if (imageUrls.length > MAX_IMAGES) errors.imageUrls = `Add up to ${MAX_IMAGES} images`;
@@ -250,6 +257,7 @@ export function validateProduct(
       descriptionHtml: descriptionHtml || null,
       productType: productType || null,
       tags,
+      collectionIds,
       trackInventory: variants.some((variant) => variant.trackInventory),
       options,
       variants,

@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useMemo, useState } from "react";
 import { BulkEditModal } from "@/components/editor/bulk-edit-modal";
 import { Card } from "@/components/editor/card";
+import { CollectionPicker, type CollectionOption } from "@/components/editor/collection-picker";
 import { MediaField } from "@/components/editor/media-field";
 import { OptionsEditor } from "@/components/editor/options-editor";
 import { RichTextEditor } from "@/components/editor/rich-text-editor";
@@ -31,12 +32,14 @@ export function ProductEditor({
   shopDomain,
   vendorId,
   currencyCode,
+  collections,
 }: {
   submissionId: string | null;
   initialDraft: ProductDraft;
   shopDomain: string;
   vendorId: string;
   currencyCode: string;
+  collections: CollectionOption[];
 }) {
   const [draft, setDraft] = useState(initialDraft);
   const [uploading, setUploading] = useState(false);
@@ -260,6 +263,19 @@ export function ProductEditor({
                   className={inputClass}
                 />
                 {errors.productType && <p className={errorClass}>{errors.productType}</p>}
+              </div>
+              <div>
+                <label htmlFor="collections" className={labelClass}>
+                  Collections
+                </label>
+                <CollectionPicker
+                  id="collections"
+                  collections={collections}
+                  value={draft.collectionIds}
+                  onChange={(collectionIds) => update("collectionIds", collectionIds)}
+                  invalid={Boolean(errors.collectionIds)}
+                />
+                {errors.collectionIds && <p className={errorClass}>{errors.collectionIds}</p>}
               </div>
               <div>
                 <label htmlFor="tags" className={labelClass}>

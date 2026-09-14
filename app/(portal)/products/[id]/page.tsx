@@ -22,9 +22,14 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
   const { id } = await params;
   const { saved } = await searchParams;
 
-  const [submission, settings] = await Promise.all([
+  const [submission, settings, collections] = await Promise.all([
     db.productSubmission.findFirst({ where: { id, vendorId: user.vendorId } }),
     db.shopSettings.findUnique({ where: { shop: user.Vendor.shop }, select: { currencyCode: true } }),
+    db.shopCollection.findMany({
+      where: { shop: user.Vendor.shop },
+      orderBy: { title: "asc" },
+      select: { collectionId: true, title: true, imageUrl: true },
+    }),
   ]);
   if (!submission) notFound();
 
@@ -62,6 +67,7 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
           shopDomain={user.Vendor.shop}
           vendorId={user.vendorId}
           currencyCode={settings?.currencyCode ?? "USD"}
+          collections={collections}
         />
       ) : (
         <div className="max-w-3xl space-y-4 rounded-xl border border-zinc-200 bg-white p-6 text-sm shadow-sm">
