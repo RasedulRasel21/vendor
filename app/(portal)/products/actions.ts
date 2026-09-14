@@ -1,60 +1,67 @@
 "use server";
 
 import { randomUUID } from "node:crypto";
+import type { Prisma } from "@prisma/client";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import {
-  readProductForm,
-  validateProductForm,
-  type ProductFormErrors,
-  type ProductFormValues,
-} from "@/lib/product-form";
 import { EDITABLE_STATUSES } from "@/lib/product-status";
+import {
+  parseProductPayload,
+  validateProduct,
+  type ProductErrors,
+} from "@/lib/product-validation";
 import { requireVendorUser } from "@/lib/session";
 
-export type ProductFormState = {
-  errors?: ProductFormErrors;
-  values?: ProductFormValues;
+export type ProductEditorState = {
+  errors?: ProductErrors;
 };
 
 // Creates (submissionId null) or updates a vendor's product. The clicked button decides
-// whether it's saved as a draft or sent for approval.
+// whether it's saved as a draft or sent to the store for approval.
 export async function saveProduct(
   submissionId: string | null,
-  _previousState: ProductFormState,
+  _previousState: ProductEditorState,
   formData: FormData,
-): Promise<ProductFormState> {
+): Promise<ProductEditorState> {
   const user = await requireVendorUser();
   const submit = formData.get("intent") === "submit";
-  const values = readProductForm(formData);
 
-  const result = validateProductForm(values, { forSubmit: submit });
-  if ("errors" in result) return { errors: result.errors, values };
+  const draft = parseProductPayload(String(formData.get("payload") ?? ""));
+  if (!draft) {
+    return { errors: { form: "The product couldn't be read. Refresh the page and try again." } };
+  }
 
+  const result = validateProduct(draft, { forSubmit: submit });
+  if ("errors" in result) return { errors: result.errors };
+
+  const { options, variants, ...fields } = result.data;
   const now = new Date();
-  const status = submit ? "PENDING" : "DRAFT";
+  const status = submit ? ("PENDING" as const) : ("DRAFT" as const);
+  const record = {
+    ...fields,
+    description: null,
+    options: options as unknown as Prisma.InputJsonValue,
+    variants: variants as unknown as Prisma.InputJsonValue,
+    status,
+    updatedAt: now,
+  };
+
   let id = submissionId;
 
   if (submissionId) {
     const existing = await db.productSubmission.findFirst({
       where: { id: submissionId, vendorId: user.vendorId },
     });
-    if (!existing) return { errors: { form: "This product wasn't found." }, values };
+    if (!existing) return { errors: { form: "This product wasn't found." } };
     if (!EDITABLE_STATUSES.includes(existing.status)) {
       return {
         errors: { form: "This product is awaiting approval or already approved, so it can't be edited." },
-        values,
       };
     }
 
     await db.productSubmission.update({
       where: { id: existing.id },
-      data: {
-        ...result.data,
-        status,
-        submittedAt: submit ? now : existing.submittedAt,
-        updatedAt: now,
-      },
+      data: { ...record, submittedAt: submit ? now : existing.submittedAt },
     });
   } else {
     id = randomUUID();
@@ -64,10 +71,8 @@ export async function saveProduct(
         shop: user.Vendor.shop,
         vendorId: user.vendorId,
         submittedById: user.id,
-        ...result.data,
-        status,
+        ...record,
         submittedAt: submit ? now : null,
-        updatedAt: now,
       },
     });
   }
@@ -79,7 +84,7 @@ export async function saveProduct(
         vendorId: user.vendorId,
         action: "product.submitted",
         actor: `vendor_user:${user.id}`,
-        details: { submissionId: id, title: result.data.title },
+        details: { submissionId: id, title: fields.title },
       },
     });
   }

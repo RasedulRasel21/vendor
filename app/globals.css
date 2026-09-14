@@ -24,3 +24,42 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Rich text in the product description editor. */
+.product-description p {
+  margin: 0.5rem 0;
+}
+.product-description h2 {
+  margin: 1rem 0 0.5rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+.product-description h3 {
+  margin: 0.75rem 0 0.5rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+.product-description ul {
+  list-style: disc;
+  padding-left: 1.5rem;
+}
+.product-description ol {
+  list-style: decimal;
+  padding-left: 1.5rem;
+}
+.product-description blockquote {
+  border-left: 3px solid #d4d4d8;
+  padding-left: 0.75rem;
+  color: #52525b;
+}
+.product-description a {
+  color: #1d4ed8;
+  text-decoration: underline;
+}
+.product-description p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  color: #a1a1aa;
+  pointer-events: none;
+}

@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { db } from "@/lib/db";
-import type { ProductFormValues } from "@/lib/product-form";
 import { StatusBadge } from "@/components/status-badge";
+import { db } from "@/lib/db";
+import { draftFromSubmission, variantLabel } from "@/lib/product-draft";
 import { EDITABLE_STATUSES } from "@/lib/product-status";
 import { requireVendorUser } from "@/lib/session";
-import { ProductForm } from "../product-form";
+import { ProductEditor } from "../product-editor";
 
 export const metadata: Metadata = {
   title: "Product · StoreVendor",
@@ -27,70 +27,73 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
   });
   if (!submission) notFound();
 
+  const draft = draftFromSubmission(submission);
   const editable = EDITABLE_STATUSES.includes(submission.status);
   const savedMessage = typeof saved === "string" ? SAVED_MESSAGES[saved] : undefined;
 
-  const values: ProductFormValues = {
-    title: submission.title,
-    description: submission.description ?? "",
-    productType: submission.productType ?? "",
-    tags: submission.tags.join(", "),
-    price: submission.price?.toFixed(2) ?? "",
-    compareAtPrice: submission.compareAtPrice?.toFixed(2) ?? "",
-    sku: submission.sku ?? "",
-    barcode: submission.barcode ?? "",
-    inventoryQuantity: submission.inventoryQuantity?.toString() ?? "",
-    imageUrls: submission.imageUrls.join("\n"),
-  };
-
   return (
-    <div className="max-w-3xl">
+    <div>
       <Link href="/products" className="text-sm text-zinc-600 hover:text-zinc-900">
         ← Products
       </Link>
-      <div className="mt-2 flex flex-wrap items-center gap-3">
+      <div className="mb-4 mt-2 flex flex-wrap items-center gap-3">
         <h1 className="text-2xl font-semibold text-zinc-900">{submission.title}</h1>
         <StatusBadge status={submission.status} />
       </div>
 
       {savedMessage && (
-        <p role="status" className="mt-4 rounded-lg bg-green-50 px-3 py-2 text-sm text-green-800">
+        <p role="status" className="mb-4 rounded-lg bg-green-50 px-3 py-2 text-sm text-green-800">
           {savedMessage}
         </p>
       )}
 
       {submission.status === "REJECTED" && submission.reviewNote && (
-        <div className="mt-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-800">
+        <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-800">
           <p className="font-medium">The store asked for changes</p>
-          <p className="mt-1">{submission.reviewNote}</p>
+          <p className="mt-1 whitespace-pre-line">{submission.reviewNote}</p>
         </div>
       )}
 
-      <div className="mt-6">
-        {editable ? (
-          <ProductForm submissionId={submission.id} initialValues={values} />
-        ) : (
-          <div className="space-y-4 rounded-xl border border-zinc-200 bg-white p-6 text-sm">
-            <p className="text-zinc-600">
-              {submission.status === "PENDING"
-                ? "This product is waiting for the store to review it, so it can't be edited right now."
-                : "This product is approved and live in the store."}
-            </p>
-            <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2">
-              <dt className="text-zinc-500">Price</dt>
-              <dd className="tabular-nums text-zinc-900">{values.price || "—"}</dd>
-              <dt className="text-zinc-500">Compare-at price</dt>
-              <dd className="tabular-nums text-zinc-900">{values.compareAtPrice || "—"}</dd>
-              <dt className="text-zinc-500">SKU</dt>
-              <dd className="text-zinc-900">{values.sku || "—"}</dd>
-              <dt className="text-zinc-500">Quantity</dt>
-              <dd className="tabular-nums text-zinc-900">{values.inventoryQuantity || "—"}</dd>
-              <dt className="text-zinc-500">Images</dt>
-              <dd className="text-zinc-900">{submission.imageUrls.length}</dd>
-            </dl>
-          </div>
-        )}
-      </div>
+      {editable ? (
+        <ProductEditor
+          submissionId={submission.id}
+          initialDraft={draft}
+          shopDomain={user.Vendor.shop}
+        />
+      ) : (
+        <div className="max-w-3xl space-y-4 rounded-xl border border-zinc-200 bg-white p-6 text-sm shadow-sm">
+          <p className="text-zinc-600">
+            {submission.status === "PENDING"
+              ? "This product is waiting for the store to review it, so it can't be edited right now."
+              : "This product is approved and live in the store."}
+          </p>
+          <table className="w-full text-left">
+            <thead className="text-zinc-500">
+              <tr>
+                <th className="py-2 font-medium">Variant</th>
+                <th className="py-2 font-medium">Price</th>
+                <th className="py-2 font-medium">SKU</th>
+                {draft.trackInventory && <th className="py-2 font-medium">Available</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {draft.variants.map((variant) => {
+                const label = variantLabel(variant.optionValues, draft.options) || "Default";
+                return (
+                  <tr key={label} className="border-t border-zinc-100">
+                    <td className="py-2 text-zinc-900">{label}</td>
+                    <td className="py-2 tabular-nums text-zinc-900">{variant.price || "—"}</td>
+                    <td className="py-2 text-zinc-900">{variant.sku || "—"}</td>
+                    {draft.trackInventory && (
+                      <td className="py-2 tabular-nums text-zinc-900">{variant.inventoryQuantity || "—"}</td>
+                    )}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

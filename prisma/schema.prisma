@@ -143,6 +143,14 @@ model ProductSubmission {
   reviewedAt        DateTime?
   createdAt         DateTime                @default(now())
   updatedAt         DateTime
+  collectionIds     String[]
+  descriptionHtml   String?
+  handle            String?
+  options           Json?
+  seoDescription    String?
+  seoTitle          String?
+  trackInventory    Boolean                 @default(true)
+  variants          Json?
   Vendor            Vendor                  @relation(fields: [vendorId], references: [id], onDelete: Cascade)
 
   @@index([shop, status])
