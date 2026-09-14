@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { db } from "@/lib/db";
 import { emptyDraft } from "@/lib/product-draft";
 import { requireVendorUser } from "@/lib/session";
 import { ProductEditor } from "../product-editor";
@@ -10,6 +11,10 @@ export const metadata: Metadata = {
 
 export default async function NewProductPage() {
   const user = await requireVendorUser();
+  const settings = await db.shopSettings.findUnique({
+    where: { shop: user.Vendor.shop },
+    select: { currencyCode: true },
+  });
 
   return (
     <div>
@@ -22,6 +27,7 @@ export default async function NewProductPage() {
         initialDraft={emptyDraft()}
         shopDomain={user.Vendor.shop}
         vendorId={user.vendorId}
+        currencyCode={settings?.currencyCode ?? "USD"}
       />
     </div>
   );

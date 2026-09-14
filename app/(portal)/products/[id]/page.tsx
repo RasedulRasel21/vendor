@@ -22,9 +22,10 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
   const { id } = await params;
   const { saved } = await searchParams;
 
-  const submission = await db.productSubmission.findFirst({
-    where: { id, vendorId: user.vendorId },
-  });
+  const [submission, settings] = await Promise.all([
+    db.productSubmission.findFirst({ where: { id, vendorId: user.vendorId } }),
+    db.shopSettings.findUnique({ where: { shop: user.Vendor.shop }, select: { currencyCode: true } }),
+  ]);
   if (!submission) notFound();
 
   const draft = draftFromSubmission(submission);
@@ -60,6 +61,7 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
           initialDraft={draft}
           shopDomain={user.Vendor.shop}
           vendorId={user.vendorId}
+          currencyCode={settings?.currencyCode ?? "USD"}
         />
       ) : (
         <div className="max-w-3xl space-y-4 rounded-xl border border-zinc-200 bg-white p-6 text-sm shadow-sm">
@@ -74,7 +76,7 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
                 <th className="py-2 font-medium">Variant</th>
                 <th className="py-2 font-medium">Price</th>
                 <th className="py-2 font-medium">SKU</th>
-                {draft.trackInventory && <th className="py-2 font-medium">Available</th>}
+                <th className="py-2 font-medium">Available</th>
               </tr>
             </thead>
             <tbody>
@@ -85,9 +87,9 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
                     <td className="py-2 text-zinc-900">{label}</td>
                     <td className="py-2 tabular-nums text-zinc-900">{variant.price || "—"}</td>
                     <td className="py-2 text-zinc-900">{variant.sku || "—"}</td>
-                    {draft.trackInventory && (
-                      <td className="py-2 tabular-nums text-zinc-900">{variant.inventoryQuantity || "—"}</td>
-                    )}
+                    <td className="py-2 tabular-nums text-zinc-900">
+                      {variant.trackInventory ? variant.inventoryQuantity || "0" : "Not tracked"}
+                    </td>
                   </tr>
                 );
               })}

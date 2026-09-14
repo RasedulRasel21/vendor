@@ -1,13 +1,25 @@
 "use client";
 
 import { useActionState, useEffect, useMemo, useState } from "react";
+import { BulkEditModal } from "@/components/editor/bulk-edit-modal";
 import { Card } from "@/components/editor/card";
 import { MediaField } from "@/components/editor/media-field";
+import { OptionsEditor } from "@/components/editor/options-editor";
 import { RichTextEditor } from "@/components/editor/rich-text-editor";
 import { SeoEditor } from "@/components/editor/seo-editor";
 import { TagInput } from "@/components/editor/tag-input";
-import { VariantsEditor } from "@/components/editor/variants-editor";
-import type { ProductDraft } from "@/lib/product-draft";
+import { InventoryFields, PricingFields, ShippingFields } from "@/components/editor/variant-fields";
+import { VariantImageModal } from "@/components/editor/variant-image-modal";
+import { VariantModal } from "@/components/editor/variant-modal";
+import { VariantsTable } from "@/components/editor/variants-table";
+import {
+  hasVariantOptions,
+  syncVariants,
+  variantLabel,
+  type ProductDraft,
+  type ProductOption,
+  type VariantDraft,
+} from "@/lib/product-draft";
 import { errorClass, inputClass, labelClass } from "@/lib/ui";
 import { saveProduct, type ProductEditorState } from "./actions";
 
@@ -18,14 +30,19 @@ export function ProductEditor({
   initialDraft,
   shopDomain,
   vendorId,
+  currencyCode,
 }: {
   submissionId: string | null;
   initialDraft: ProductDraft;
   shopDomain: string;
   vendorId: string;
+  currencyCode: string;
 }) {
   const [draft, setDraft] = useState(initialDraft);
   const [uploading, setUploading] = useState(false);
+  const [editingVariant, setEditingVariant] = useState<number | null>(null);
+  const [imagePickerFor, setImagePickerFor] = useState<number | null>(null);
+  const [bulkIndices, setBulkIndices] = useState<number[] | null>(null);
   const [state, formAction, pending] = useActionState(
     saveProduct.bind(null, submissionId),
     initialState,
@@ -36,6 +53,7 @@ export function ProductEditor({
   const payload = JSON.stringify(draft);
   const savedPayload = useMemo(() => JSON.stringify(initialDraft), [initialDraft]);
   const dirty = payload !== savedPayload;
+  const withVariants = hasVariantOptions(draft.options);
 
   useEffect(() => {
     if (!dirty) return;
@@ -47,6 +65,33 @@ export function ProductEditor({
   const update = <Key extends keyof ProductDraft>(key: Key, value: ProductDraft[Key]) =>
     setDraft((current) => ({ ...current, [key]: value }));
 
+  const setOptions = (options: ProductOption[]) =>
+    setDraft((current) => ({
+      ...current,
+      options,
+      variants: syncVariants(current.options, current.variants, options),
+    }));
+
+  const patchVariants = (indices: number[], patch: Partial<VariantDraft>) =>
+    setDraft((current) => ({
+      ...current,
+      variants: current.variants.map((variant, index) => (indices.includes(index) ? { ...variant, ...patch } : variant)),
+    }));
+
+  const deleteVariants = (indices: number[]) =>
+    setDraft((current) => ({
+      ...current,
+      variants: current.variants.filter((_, index) => !indices.includes(index)),
+    }));
+
+  const fieldProps = {
+    variant: draft.variants[0],
+    onChange: (patch: Partial<VariantDraft>) => patchVariants([0], patch),
+    errors,
+    fieldPrefix: "variants.0",
+    currencyCode,
+  };
+
   return (
     <form action={formAction}>
       <input type="hidden" name="payload" value={payload} />
@@ -57,13 +102,7 @@ export function ProductEditor({
         }`}
       >
         <p className="text-sm font-medium">
-          {pending
-            ? "Saving…"
-            : uploading
-              ? "Uploading images…"
-              : dirty
-                ? "Unsaved changes"
-                : "No unsaved changes"}
+          {pending ? "Saving…" : uploading ? "Uploading images…" : dirty ? "Unsaved changes" : "No unsaved changes"}
         </p>
         <div className="flex gap-2">
           <button
@@ -72,9 +111,7 @@ export function ProductEditor({
             value="draft"
             disabled={pending || uploading}
             className={`rounded-lg border px-3 py-1.5 text-sm font-semibold disabled:opacity-60 ${
-              dirty
-                ? "border-zinc-600 text-white hover:bg-zinc-800"
-                : "border-zinc-300 bg-white text-zinc-800 hover:bg-zinc-100"
+              dirty ? "border-zinc-600 text-white hover:bg-zinc-800" : "border-zinc-300 bg-white text-zinc-800 hover:bg-zinc-100"
             }`}
           >
             Save draft
@@ -95,8 +132,7 @@ export function ProductEditor({
 
       {errorCount > 0 && (
         <div role="alert" className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-          {errors.form ??
-            `Fix ${errorCount} ${errorCount === 1 ? "problem" : "problems"} below, then save again.`}
+          {errors.form ?? `Fix ${errorCount} ${errorCount === 1 ? "problem" : "problems"} below, then save again.`}
         </div>
       )}
 
@@ -139,23 +175,54 @@ export function ProductEditor({
               vendorId={vendorId}
               urls={draft.imageUrls}
               onChange={(updateUrls) =>
-                setDraft((current) => ({ ...current, imageUrls: updateUrls(current.imageUrls) }))
+                setDraft((current) => {
+                  const imageUrls = updateUrls(current.imageUrls);
+                  return {
+                    ...current,
+                    imageUrls,
+                    // A variant can only use one of the product's images.
+                    variants: current.variants.map((variant) =>
+                      variant.imageUrl && !imageUrls.includes(variant.imageUrl) ? { ...variant, imageUrl: "" } : variant,
+                    ),
+                  };
+                })
               }
               onUploadingChange={setUploading}
               error={errors.imageUrls}
             />
           </Card>
 
-          <Card title="Pricing and variants">
-            <VariantsEditor
-              options={draft.options}
-              variants={draft.variants}
-              trackInventory={draft.trackInventory}
-              errors={errors}
-              onChange={({ options, variants }) =>
-                setDraft((current) => ({ ...current, options, variants }))
-              }
-            />
+          {!withVariants && draft.variants[0] && (
+            <>
+              <Card title="Pricing">
+                <PricingFields {...fieldProps} />
+              </Card>
+              <Card title="Inventory">
+                <InventoryFields {...fieldProps} />
+              </Card>
+              <Card title="Shipping">
+                <ShippingFields {...fieldProps} />
+              </Card>
+            </>
+          )}
+
+          <Card title="Variants">
+            <div className="space-y-4">
+              <OptionsEditor options={draft.options} errors={errors} onChange={setOptions} />
+              {withVariants && (
+                <VariantsTable
+                  options={draft.options}
+                  variants={draft.variants}
+                  currencyCode={currencyCode}
+                  errors={errors}
+                  onPatch={patchVariants}
+                  onDelete={deleteVariants}
+                  onEdit={setEditingVariant}
+                  onPickImage={setImagePickerFor}
+                  onBulkEdit={setBulkIndices}
+                />
+              )}
+            </div>
           </Card>
 
           <Card title="Search engine listing" description="How this product can appear in search results.">
@@ -173,8 +240,7 @@ export function ProductEditor({
         <aside className="space-y-6">
           <Card title="Status">
             <p className="text-sm text-zinc-600">
-              Save a draft anytime. When it&apos;s ready, submit it: the store reviews every
-              product before it goes live.
+              Save a draft anytime. When it&apos;s ready, submit it: the store reviews every product before it goes live.
             </p>
           </Card>
 
@@ -209,23 +275,54 @@ export function ProductEditor({
               </div>
             </div>
           </Card>
-
-          <Card title="Inventory">
-            <label className="flex items-start gap-2 text-sm text-zinc-800">
-              <input
-                type="checkbox"
-                checked={draft.trackInventory}
-                onChange={(event) => update("trackInventory", event.target.checked)}
-                className="mt-0.5 size-4 accent-zinc-900"
-              />
-              <span>
-                Track quantity
-                <span className="block text-zinc-500">Enter how many of each variant you have.</span>
-              </span>
-            </label>
-          </Card>
         </aside>
       </div>
+
+      {editingVariant !== null && draft.variants[editingVariant] && (
+        <VariantModal
+          variant={draft.variants[editingVariant]}
+          index={editingVariant}
+          label={variantLabel(draft.variants[editingVariant].optionValues, draft.options)}
+          options={draft.options}
+          imageUrls={draft.imageUrls}
+          currencyCode={currencyCode}
+          errors={errors}
+          onClose={() => setEditingVariant(null)}
+          onDone={(variant) => {
+            const index = editingVariant;
+            setDraft((current) => ({
+              ...current,
+              variants: current.variants.map((existing, i) => (i === index ? variant : existing)),
+            }));
+            setEditingVariant(null);
+          }}
+        />
+      )}
+
+      {imagePickerFor !== null && draft.variants[imagePickerFor] && (
+        <VariantImageModal
+          variantLabel={variantLabel(draft.variants[imagePickerFor].optionValues, draft.options)}
+          imageUrls={draft.imageUrls}
+          selectedUrl={draft.variants[imagePickerFor].imageUrl}
+          onClose={() => setImagePickerFor(null)}
+          onDone={(url) => {
+            patchVariants([imagePickerFor], { imageUrl: url });
+            setImagePickerFor(null);
+          }}
+        />
+      )}
+
+      {bulkIndices && (
+        <BulkEditModal
+          count={bulkIndices.length}
+          currencyCode={currencyCode}
+          onClose={() => setBulkIndices(null)}
+          onApply={(patch) => {
+            patchVariants(bulkIndices, patch);
+            setBulkIndices(null);
+          }}
+        />
+      )}
     </form>
   );
 }

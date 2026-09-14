@@ -35,6 +35,7 @@ model ShopSettings {
   createdAt             DateTime  @default(now())
   updatedAt             DateTime
   setupGuideDismissedAt DateTime?
+  currencyCode          String?
 }
 
 model Vendor {

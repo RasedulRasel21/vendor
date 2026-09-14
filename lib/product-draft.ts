@@ -2,13 +2,33 @@
 
 export type ProductOption = { name: string; values: string[] };
 
+export type WeightUnit = "KILOGRAMS" | "GRAMS" | "POUNDS" | "OUNCES";
+
+export const WEIGHT_UNITS: { value: WeightUnit; label: string }[] = [
+  { value: "KILOGRAMS", label: "kg" },
+  { value: "GRAMS", label: "g" },
+  { value: "POUNDS", label: "lb" },
+  { value: "OUNCES", label: "oz" },
+];
+
+// Every per-variant setting Shopify has, as editable strings and flags.
 export type VariantDraft = {
   optionValues: Record<string, string>;
+  imageUrl: string;
   price: string;
   compareAtPrice: string;
+  costPerItem: string;
+  taxable: boolean;
   sku: string;
   barcode: string;
+  trackInventory: boolean;
   inventoryQuantity: string;
+  continueSelling: boolean;
+  requiresShipping: boolean;
+  weight: string;
+  weightUnit: WeightUnit;
+  countryOfOrigin: string;
+  hsCode: string;
 };
 
 export type ProductDraft = {
@@ -16,6 +36,7 @@ export type ProductDraft = {
   descriptionHtml: string;
   productType: string;
   tags: string[];
+  // Kept for older submissions; each variant now has its own trackInventory.
   trackInventory: boolean;
   options: ProductOption[];
   variants: VariantDraft[];
@@ -28,19 +49,50 @@ export type ProductDraft = {
 // How variants are stored in the database and read by the Shopify app.
 export type StoredVariant = {
   optionValues: Record<string, string>;
+  imageUrl: string | null;
   price: string | null;
   compareAtPrice: string | null;
+  costPerItem: string | null;
+  taxable: boolean;
   sku: string | null;
   barcode: string | null;
+  trackInventory: boolean;
   inventoryQuantity: number | null;
+  continueSelling: boolean;
+  requiresShipping: boolean;
+  weight: string | null;
+  weightUnit: WeightUnit;
+  countryOfOrigin: string | null;
+  hsCode: string | null;
 };
 
 export const MAX_OPTIONS = 3;
 export const MAX_VARIANTS = 100;
 export const MAX_IMAGES = 20;
 
-export function emptyVariant(optionValues: Record<string, string> = {}): VariantDraft {
-  return { optionValues, price: "", compareAtPrice: "", sku: "", barcode: "", inventoryQuantity: "" };
+export function emptyVariant(
+  optionValues: Record<string, string> = {},
+  defaults: Partial<VariantDraft> = {},
+): VariantDraft {
+  return {
+    imageUrl: "",
+    price: "",
+    compareAtPrice: "",
+    costPerItem: "",
+    taxable: true,
+    sku: "",
+    barcode: "",
+    trackInventory: true,
+    inventoryQuantity: "",
+    continueSelling: false,
+    requiresShipping: true,
+    weight: "",
+    weightUnit: "KILOGRAMS",
+    countryOfOrigin: "",
+    hsCode: "",
+    ...defaults,
+    optionValues,
+  };
 }
 
 export function emptyDraft(): ProductDraft {
@@ -60,7 +112,7 @@ export function emptyDraft(): ProductDraft {
 }
 
 // While a name is still empty, its position stands in, so renaming never reshuffles variants.
-function optionKey(option: ProductOption, index: number) {
+export function optionKey(option: ProductOption, index: number) {
   return option.name.trim() || `Option ${index + 1}`;
 }
 
@@ -88,23 +140,82 @@ export function variantLabel(optionValues: Record<string, string>, options: Prod
     .join(" / ");
 }
 
-// Rebuilds the variant list after the options change, keeping values the vendor already entered.
+// Identifies a variant by its option values regardless of option order, so reordering
+// or renaming options keeps each variant's settings.
+export function variantKey(optionValues: Record<string, string>, options: ProductOption[]) {
+  const pairs = options
+    .map((option, index) => {
+      if (!option.values.length) return null;
+      const key = optionKey(option, index);
+      return [key, optionValues[key] ?? ""];
+    })
+    .filter((pair): pair is string[] => pair !== null)
+    .sort((a, b) => a[0].localeCompare(b[0]));
+  return JSON.stringify(pairs);
+}
+
+// Settings a new variant copies from an existing one, like Shopify does when adding values.
+function sharedSettings(variant: VariantDraft): Partial<VariantDraft> {
+  return {
+    price: variant.price,
+    compareAtPrice: variant.compareAtPrice,
+    costPerItem: variant.costPerItem,
+    taxable: variant.taxable,
+    trackInventory: variant.trackInventory,
+    continueSelling: variant.continueSelling,
+    requiresShipping: variant.requiresShipping,
+    weight: variant.weight,
+    weightUnit: variant.weightUnit,
+    countryOfOrigin: variant.countryOfOrigin,
+    hsCode: variant.hsCode,
+  };
+}
+
+// Rebuilds variants after the options change: keeps existing variants and their settings,
+// adds variants only for new combinations, and keeps removed variants removed.
 export function syncVariants(
   previousOptions: ProductOption[],
   previousVariants: VariantDraft[],
   nextOptions: ProductOption[],
 ): VariantDraft[] {
   const existing = new Map(
-    previousVariants.map((variant) => [variantLabel(variant.optionValues, previousOptions), variant]),
+    previousVariants.map((variant) => [variantKey(variant.optionValues, previousOptions), variant]),
   );
-  const template = previousVariants[0] ?? emptyVariant();
+  const previousKeys = new Set(
+    variantCombinations(previousOptions).map((combo) => variantKey(combo, previousOptions)),
+  );
+  const defaults = previousVariants[0] ? sharedSettings(previousVariants[0]) : {};
+  const combinations = variantCombinations(nextOptions);
 
-  return variantCombinations(nextOptions).map((combo) => {
-    const match = existing.get(variantLabel(combo, nextOptions));
-    return match
-      ? { ...match, optionValues: combo }
-      : { ...emptyVariant(combo), price: template.price, compareAtPrice: template.compareAtPrice };
+  const next = combinations.flatMap((combo) => {
+    const key = variantKey(combo, nextOptions);
+    const match = existing.get(key);
+    if (match) return [{ ...match, optionValues: combo }];
+    if (previousKeys.has(key)) return [];
+    return [emptyVariant(combo, defaults)];
   });
+
+  return next.length ? next : [emptyVariant(combinations[0] ?? {}, defaults)];
+}
+
+export type VariantGroup = { value: string; items: { variant: VariantDraft; index: number }[] };
+
+// With two or more options, Shopify groups the variants table by the first option.
+export function groupVariants(variants: VariantDraft[], options: ProductOption[]): VariantGroup[] | null {
+  const usable = options.map((option, index) => ({ option, index })).filter(({ option }) => option.values.length);
+  if (usable.length < 2) return null;
+
+  const first = usable[0];
+  const key = optionKey(first.option, first.index);
+
+  return first.option.values
+    .map((value) => ({
+      value,
+      items: variants
+        .map((variant, index) => ({ variant, index }))
+        .filter(({ variant }) => variant.optionValues[key] === value),
+    }))
+    .filter((group) => group.items.length);
 }
 
 export function stripHtml(html: string) {
@@ -147,29 +258,43 @@ export type SubmissionRecord = {
   inventoryQuantity: number | null;
 };
 
-// Also converts submissions saved by the first, single-variant version of the form.
+// Also converts submissions saved by earlier versions of the editor, filling in Shopify defaults.
 export function draftFromSubmission(submission: SubmissionRecord): ProductDraft {
   const options = Array.isArray(submission.options) ? (submission.options as ProductOption[]) : [];
-  const stored = Array.isArray(submission.variants) ? (submission.variants as StoredVariant[]) : [];
+  const stored = Array.isArray(submission.variants) ? (submission.variants as Partial<StoredVariant>[]) : [];
 
   const variants: VariantDraft[] = stored.length
-    ? stored.map((variant) => ({
-        optionValues: variant.optionValues ?? {},
-        price: variant.price ?? "",
-        compareAtPrice: variant.compareAtPrice ?? "",
-        sku: variant.sku ?? "",
-        barcode: variant.barcode ?? "",
-        inventoryQuantity: variant.inventoryQuantity === null ? "" : String(variant.inventoryQuantity),
-      }))
+    ? stored.map((variant) =>
+        emptyVariant(variant.optionValues ?? {}, {
+          imageUrl: variant.imageUrl ?? "",
+          price: variant.price ?? "",
+          compareAtPrice: variant.compareAtPrice ?? "",
+          costPerItem: variant.costPerItem ?? "",
+          taxable: variant.taxable ?? true,
+          sku: variant.sku ?? "",
+          barcode: variant.barcode ?? "",
+          trackInventory: variant.trackInventory ?? submission.trackInventory,
+          inventoryQuantity:
+            variant.inventoryQuantity === null || variant.inventoryQuantity === undefined
+              ? ""
+              : String(variant.inventoryQuantity),
+          continueSelling: variant.continueSelling ?? false,
+          requiresShipping: variant.requiresShipping ?? true,
+          weight: variant.weight ?? "",
+          weightUnit: variant.weightUnit ?? "KILOGRAMS",
+          countryOfOrigin: variant.countryOfOrigin ?? "",
+          hsCode: variant.hsCode ?? "",
+        }),
+      )
     : [
-        {
-          optionValues: {},
+        emptyVariant({}, {
           price: submission.price?.toFixed(2) ?? "",
           compareAtPrice: submission.compareAtPrice?.toFixed(2) ?? "",
           sku: submission.sku ?? "",
           barcode: submission.barcode ?? "",
+          trackInventory: submission.trackInventory,
           inventoryQuantity: submission.inventoryQuantity?.toString() ?? "",
-        },
+        }),
       ];
 
   return {

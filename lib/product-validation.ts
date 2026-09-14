@@ -1,10 +1,11 @@
 import { z } from "zod";
+import { COUNTRY_CODES } from "@/lib/countries";
 import {
   MAX_IMAGES,
   MAX_OPTIONS,
   MAX_VARIANTS,
   variantCombinations,
-  variantLabel,
+  variantKey,
   type ProductDraft,
   type ProductOption,
   type StoredVariant,
@@ -33,35 +34,47 @@ export type ProductData = {
   inventoryQuantity: number | null;
 };
 
+const text = (max: number) => z.string().max(max);
+
 const draftSchema = z.object({
-  title: z.string().max(2000),
-  descriptionHtml: z.string().max(200000),
-  productType: z.string().max(2000),
-  tags: z.array(z.string().max(2000)).max(1000),
+  title: text(2000),
+  descriptionHtml: text(200000),
+  productType: text(2000),
+  tags: z.array(text(2000)).max(1000),
   trackInventory: z.boolean(),
-  options: z
-    .array(z.object({ name: z.string().max(2000), values: z.array(z.string().max(2000)).max(1000) }))
-    .max(20),
+  options: z.array(z.object({ name: text(2000), values: z.array(text(2000)).max(1000) })).max(20),
   variants: z
     .array(
       z.object({
         optionValues: z.record(z.string(), z.string()),
-        price: z.string().max(100),
-        compareAtPrice: z.string().max(100),
-        sku: z.string().max(2000),
-        barcode: z.string().max(2000),
-        inventoryQuantity: z.string().max(100),
+        imageUrl: text(5000),
+        price: text(100),
+        compareAtPrice: text(100),
+        costPerItem: text(100),
+        taxable: z.boolean(),
+        sku: text(2000),
+        barcode: text(2000),
+        trackInventory: z.boolean(),
+        inventoryQuantity: text(100),
+        continueSelling: z.boolean(),
+        requiresShipping: z.boolean(),
+        weight: text(100),
+        weightUnit: z.enum(["KILOGRAMS", "GRAMS", "POUNDS", "OUNCES"]),
+        countryOfOrigin: text(10),
+        hsCode: text(100),
       }),
     )
     .max(5000),
-  imageUrls: z.array(z.string().max(5000)).max(200),
-  seoTitle: z.string().max(2000),
-  seoDescription: z.string().max(5000),
-  handle: z.string().max(2000),
+  imageUrls: z.array(text(5000)).max(200),
+  seoTitle: text(2000),
+  seoDescription: text(5000),
+  handle: text(2000),
 });
 
 const AMOUNT = /^\d{1,10}(\.\d{1,2})?$/;
 const QUANTITY = /^\d{1,7}$/;
+const WEIGHT = /^\d{1,7}(\.\d{1,3})?$/;
+const HS_CODE = /^\d{6,13}$/;
 const HANDLE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 const unique = (values: string[]) => {
@@ -91,7 +104,7 @@ export function parseProductPayload(payload: string): ProductDraft | null {
   }
 }
 
-// Drafts can be incomplete; submitting for approval also needs every price.
+// Drafts can be incomplete; submitting for approval also needs prices and tracked quantities.
 // Error keys match editor fields, for example "variants.2.price".
 export function validateProduct(
   draft: ProductDraft,
@@ -113,6 +126,10 @@ export function validateProduct(
   if (tags.length > 250) errors.tags = "Use up to 250 tags";
   else if (tags.some((tag) => tag.length > 255)) errors.tags = "Keep each tag to 255 characters or fewer";
 
+  const imageUrls = unique(draft.imageUrls.map((url) => url.trim()).filter(Boolean));
+  if (imageUrls.length > MAX_IMAGES) errors.imageUrls = `Add up to ${MAX_IMAGES} images`;
+  else if (imageUrls.some((url) => !isHttpsUrl(url))) errors.imageUrls = "Each image link must start with https://";
+
   if (draft.options.length > MAX_OPTIONS) errors.options = `Add up to ${MAX_OPTIONS} options`;
 
   const options: ProductOption[] = draft.options.map((option, index) => {
@@ -133,29 +150,32 @@ export function validateProduct(
     return { name, values };
   });
 
-  const combinations = variantCombinations(options);
-  if (combinations.length > MAX_VARIANTS) {
-    errors.variants = `Products can have up to ${MAX_VARIANTS} variants`;
-  }
-
-  const draftsByLabel = new Map(
-    draft.variants.map((variant) => [variantLabel(variant.optionValues, draft.options), variant]),
+  const combinations = new Map(
+    variantCombinations(options).map((combination) => [variantKey(combination, options), combination]),
   );
+  const seenKeys = new Set<string>();
   const variants: StoredVariant[] = [];
 
-  combinations.forEach((combination, index) => {
-    const input = draftsByLabel.get(variantLabel(combination, options));
-    if (!input) {
-      errors.variants ??= "The variants don't match the options. Check the variants table.";
+  draft.variants.forEach((input, index) => {
+    const matchKey = variantKey(input.optionValues, draft.options);
+    const combination = combinations.get(matchKey);
+    if (!combination || seenKeys.has(matchKey)) {
+      errors.variants ??= "Some variants don't match the options. Check the variants list.";
       return;
     }
+    seenKeys.add(matchKey);
 
     const key = `variants.${index}`;
     const price = input.price.trim();
     const compareAtPrice = input.compareAtPrice.trim();
+    const costPerItem = input.costPerItem.trim();
     const quantity = input.inventoryQuantity.trim();
+    const weight = input.weight.trim();
+    const hsCode = input.hsCode.replace(/[\s.]/g, "");
+    const countryOfOrigin = input.countryOfOrigin.trim().toUpperCase();
     const sku = input.sku.trim();
     const barcode = input.barcode.trim();
+    const imageUrl = input.imageUrl.trim();
 
     if (price && !AMOUNT.test(price)) errors[`${key}.price`] = "Enter a price like 19.99";
     else if (!price && forSubmit) errors[`${key}.price`] = "Enter a price";
@@ -166,38 +186,58 @@ export function validateProduct(
       errors[`${key}.compareAtPrice`] = "Must be higher than the price";
     }
 
-    if (draft.trackInventory && quantity && !QUANTITY.test(quantity)) {
-      errors[`${key}.inventoryQuantity`] = "Enter a whole number";
+    if (costPerItem && !AMOUNT.test(costPerItem)) errors[`${key}.costPerItem`] = "Enter an amount like 8.50";
+
+    if (input.trackInventory) {
+      if (quantity && !QUANTITY.test(quantity)) errors[`${key}.inventoryQuantity`] = "Enter a whole number";
+      else if (!quantity && forSubmit) errors[`${key}.inventoryQuantity`] = "Enter the quantity available";
     }
+
     if (sku.length > 255) errors[`${key}.sku`] = "Use 255 characters or fewer";
     if (barcode.length > 255) errors[`${key}.barcode`] = "Use 255 characters or fewer";
 
+    if (input.requiresShipping && weight && !WEIGHT.test(weight)) {
+      errors[`${key}.weight`] = "Enter a weight like 0.5";
+    }
+    if (countryOfOrigin && !COUNTRY_CODES.includes(countryOfOrigin)) {
+      errors[`${key}.countryOfOrigin`] = "Choose a country from the list";
+    }
+    if (hsCode && !HS_CODE.test(hsCode)) errors[`${key}.hsCode`] = "Enter a 6 to 13 digit HS code";
+
+    if (imageUrl && !imageUrls.includes(imageUrl)) {
+      errors[`${key}.imageUrl`] = "Choose the variant image from this product's images";
+    }
+
     variants.push({
       optionValues: combination,
+      imageUrl: imageUrl || null,
       price: AMOUNT.test(price) ? Number(price).toFixed(2) : null,
       compareAtPrice: AMOUNT.test(compareAtPrice) ? Number(compareAtPrice).toFixed(2) : null,
+      costPerItem: AMOUNT.test(costPerItem) ? Number(costPerItem).toFixed(2) : null,
+      taxable: input.taxable,
       sku: sku || null,
       barcode: barcode || null,
-      inventoryQuantity: draft.trackInventory && QUANTITY.test(quantity) ? Number(quantity) : null,
+      trackInventory: input.trackInventory,
+      inventoryQuantity: input.trackInventory && QUANTITY.test(quantity) ? Number(quantity) : null,
+      continueSelling: input.continueSelling,
+      requiresShipping: input.requiresShipping,
+      weight: input.requiresShipping && WEIGHT.test(weight) ? weight : null,
+      weightUnit: input.weightUnit,
+      countryOfOrigin: countryOfOrigin || null,
+      hsCode: hsCode || null,
     });
   });
 
-  const imageUrls = unique(draft.imageUrls.map((url) => url.trim()).filter(Boolean));
-  if (imageUrls.length > MAX_IMAGES) errors.imageUrls = `Add up to ${MAX_IMAGES} images`;
-  else if (imageUrls.some((url) => !isHttpsUrl(url))) {
-    errors.imageUrls = "Each image link must start with https://";
-  }
+  if (!draft.variants.length && !errors.variants) errors.variants = "Add at least one variant";
+  if (combinations.size > MAX_VARIANTS) errors.variants = `Products can have up to ${MAX_VARIANTS} variants`;
 
   const seoTitle = draft.seoTitle.trim();
   const seoDescription = draft.seoDescription.trim();
   const handle = draft.handle.trim().toLowerCase();
   if (seoTitle.length > 70) errors.seoTitle = "Use 70 characters or fewer";
   if (seoDescription.length > 320) errors.seoDescription = "Use 320 characters or fewer";
-  if (handle && !HANDLE.test(handle)) {
-    errors.handle = "Use lowercase letters, numbers and hyphens only";
-  } else if (handle.length > 255) {
-    errors.handle = "Use 255 characters or fewer";
-  }
+  if (handle && !HANDLE.test(handle)) errors.handle = "Use lowercase letters, numbers and hyphens only";
+  else if (handle.length > 255) errors.handle = "Use 255 characters or fewer";
 
   if (Object.keys(errors).length) return { errors };
 
@@ -210,7 +250,7 @@ export function validateProduct(
       descriptionHtml: descriptionHtml || null,
       productType: productType || null,
       tags,
-      trackInventory: draft.trackInventory,
+      trackInventory: variants.some((variant) => variant.trackInventory),
       options,
       variants,
       imageUrls,
