@@ -173,7 +173,9 @@ export function VariantsTable({
             </button>
           </div>
         ) : (
-          <span />
+          <p className="text-sm text-zinc-600">
+            Click a variant to edit its pricing, inventory and shipping. Select variants to bulk edit.
+          </p>
         )}
         <div className="flex items-center gap-2">
           {searchOpen && (
@@ -207,7 +209,7 @@ export function VariantsTable({
       {errors.variants && <p className="text-sm text-red-700">{errors.variants}</p>}
 
       <div className="overflow-x-auto rounded-lg border border-zinc-200">
-        <table className="w-full min-w-[34rem] text-left text-sm">
+        <table className="w-full min-w-136 text-left text-sm">
           <thead className="bg-zinc-50 text-zinc-600">
             <tr>
               <th className="w-10 px-3 py-2">
