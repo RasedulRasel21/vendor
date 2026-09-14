@@ -134,13 +134,16 @@ export function MediaLibraryModal({
       onClick={(event) => {
         if (event.target === dialogRef.current) onClose();
       }}
-      className="m-auto w-[min(64rem,calc(100vw-2rem))] overflow-hidden rounded-xl bg-white p-0 shadow-2xl backdrop:bg-black/50"
+      className="m-auto w-[min(64rem,calc(100vw-2rem))] overflow-hidden rounded-2xl bg-white p-0 text-zinc-900 shadow-2xl shadow-zinc-900/15 backdrop:bg-zinc-900/40 backdrop:backdrop-blur-[2px]"
     >
-      <div className="flex max-h-[calc(100vh-2rem)] flex-col">
-        <header className="flex items-center justify-between border-b border-zinc-200 px-5 py-3">
-          <h2 id="media-library-title" className="font-semibold text-zinc-900">
-            Select images
-          </h2>
+      <div className="flex max-h-[calc(100dvh-2rem)] flex-col">
+        <header className="flex items-center justify-between border-b border-zinc-100 px-6 pb-4 pt-5">
+          <div>
+            <h2 id="media-library-title" className="font-display text-lg font-semibold">
+              Select images
+            </h2>
+            <p className="text-sm text-zinc-500">Pick from your uploads or add new files.</p>
+          </div>
           <button
             type="button"
             aria-label="Close"
@@ -151,7 +154,7 @@ export function MediaLibraryModal({
           </button>
         </header>
 
-        <div className="flex-1 space-y-4 overflow-y-auto px-5 py-4">
+        <div className="flex-1 space-y-4 overflow-y-auto px-6 py-5">
           <div className="flex flex-wrap gap-2">
             <input
               type="search"
@@ -187,7 +190,7 @@ export function MediaLibraryModal({
               if (event.dataTransfer.files.length) startUpload(event.dataTransfer.files);
             }}
             className={`rounded-lg border-2 border-dashed px-4 py-6 text-center transition-colors ${
-              dropActive ? "border-zinc-900 bg-zinc-50" : "border-zinc-300"
+              dropActive ? "border-primary-600 bg-zinc-50" : "border-zinc-300"
             }`}
           >
             <button type="button" onClick={() => fileInput.current?.click()} className={secondaryButtonClass}>
@@ -230,12 +233,12 @@ export function MediaLibraryModal({
                       aria-pressed={checked}
                       aria-label={`${checked ? "Deselect" : "Select"} ${file.name}`}
                       className={`relative block w-full rounded-lg border-2 p-1 text-left ${
-                        checked ? "border-zinc-900" : "border-transparent hover:border-zinc-300"
+                        checked ? "border-primary-600" : "border-transparent hover:border-zinc-300"
                       }`}
                     >
                       <span
                         className={`absolute left-2 top-2 flex size-5 items-center justify-center rounded border text-xs font-semibold ${
-                          checked ? "border-zinc-900 bg-zinc-900 text-white" : "border-zinc-400 bg-white"
+                          checked ? "border-primary-600 bg-primary-600 text-white" : "border-zinc-400 bg-white"
                         }`}
                       >
                         {checked ? position + 1 : ""}
@@ -263,7 +266,7 @@ export function MediaLibraryModal({
           )}
         </div>
 
-        <footer className="flex items-center justify-between gap-3 border-t border-zinc-200 px-5 py-3">
+        <footer className="flex items-center justify-between gap-3 border-t border-zinc-200 bg-zinc-50 px-6 py-3.5">
           <p className="text-sm text-zinc-600">
             {uploading ? "Uploading…" : `${selected.length} selected`}
           </p>
@@ -275,7 +278,7 @@ export function MediaLibraryModal({
               type="button"
               onClick={() => onDone(selected)}
               disabled={uploading}
-              className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-700 disabled:opacity-50"
+              className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-50"
             >
               Done
             </button>

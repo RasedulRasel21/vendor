@@ -1,8 +1,8 @@
 export const SUBMISSION_STATUS = {
-  DRAFT: { label: "Draft", className: "bg-zinc-100 text-zinc-700" },
-  PENDING: { label: "Awaiting approval", className: "bg-amber-100 text-amber-800" },
-  APPROVED: { label: "Approved", className: "bg-green-100 text-green-800" },
-  REJECTED: { label: "Changes requested", className: "bg-red-100 text-red-800" },
+  DRAFT: { label: "Draft", className: "bg-zinc-100 text-zinc-600", dot: "bg-zinc-400" },
+  PENDING: { label: "Awaiting approval", className: "bg-secondary-50 text-secondary-700", dot: "bg-secondary-600" },
+  APPROVED: { label: "Live", className: "bg-primary-50 text-primary-700", dot: "bg-primary-500" },
+  REJECTED: { label: "Changes requested", className: "bg-red-50 text-red-700", dot: "bg-red-500" },
 } as const;
 
 export type SubmissionStatus = keyof typeof SUBMISSION_STATUS;

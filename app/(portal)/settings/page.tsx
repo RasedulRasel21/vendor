@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Card } from "@/components/editor/card";
+import { PageHeader } from "@/components/portal/page-header";
 import { db } from "@/lib/db";
 import { payoutRows } from "@/lib/payout";
 import { requireVendorUser } from "@/lib/session";
@@ -53,7 +54,7 @@ export default async function SettingsPage() {
 
   return (
     <div className="max-w-3xl space-y-6">
-      <h1 className="text-2xl font-semibold text-zinc-900">Settings</h1>
+      <PageHeader title="Settings" description="Your contact details and where the store sends your earnings." />
 
       <Card title="Store profile" description="Contact the store to change your business name or sign-in email.">
         <DetailRows

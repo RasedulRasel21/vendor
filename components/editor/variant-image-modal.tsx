@@ -32,7 +32,7 @@ export function VariantImageModal({
           <button
             type="button"
             onClick={() => onDone(selected)}
-            className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-700"
+            className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700"
           >
             Done
           </button>
@@ -50,13 +50,13 @@ export function VariantImageModal({
                   aria-pressed={checked}
                   onClick={() => setSelected(checked ? "" : url)}
                   className={`relative block w-full overflow-hidden rounded-lg border-2 ${
-                    checked ? "border-zinc-900" : "border-zinc-200 hover:border-zinc-400"
+                    checked ? "border-primary-600" : "border-zinc-200 hover:border-zinc-400"
                   }`}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={url} alt="" className="aspect-square w-full object-cover" />
                   {checked && (
-                    <span className="absolute left-1.5 top-1.5 rounded-full bg-zinc-900 px-1.5 text-xs font-semibold text-white">
+                    <span className="absolute left-1.5 top-1.5 rounded-full bg-primary-600 px-1.5 text-xs font-semibold text-white">
                       ✓
                     </span>
                   )}

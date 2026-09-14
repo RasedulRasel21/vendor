@@ -30,7 +30,7 @@ export function TagInput({
 
   return (
     <div
-      className={`flex min-h-10 flex-wrap items-center gap-1.5 rounded-lg border bg-white px-2 py-1.5 shadow-sm focus-within:border-zinc-900 focus-within:ring-2 focus-within:ring-zinc-900/10 ${
+      className={`flex min-h-10 flex-wrap items-center gap-1.5 rounded-lg border bg-white px-2 py-1.5 shadow-sm focus-within:border-primary-600 focus-within:ring-2 focus-within:ring-primary-200/50 ${
         invalid ? "border-red-500" : "border-zinc-300"
       }`}
     >

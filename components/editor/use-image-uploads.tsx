@@ -98,7 +98,7 @@ export function PendingUploads({
             <p className="mt-1 text-xs text-red-700">{item.error}</p>
           ) : (
             <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-zinc-100">
-              <div className="h-full bg-zinc-900 transition-all" style={{ width: `${item.progress}%` }} />
+              <div className="h-full bg-primary-600 transition-all" style={{ width: `${item.progress}%` }} />
             </div>
           )}
         </li>

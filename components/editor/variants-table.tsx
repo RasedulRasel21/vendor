@@ -23,7 +23,7 @@ type Props = {
 };
 
 const cellInput =
-  "w-full rounded-lg border border-zinc-300 bg-white py-1.5 pr-2 text-sm text-zinc-900 shadow-sm outline-none focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10 aria-invalid:border-red-500";
+  "w-full rounded-lg border border-zinc-300 bg-white py-1.5 pr-2 text-sm text-zinc-900 shadow-sm outline-none focus:border-primary-600 focus:ring-2 focus:ring-primary-200/50 aria-invalid:border-red-500";
 
 function Thumb({ url, onClick, label }: { url: string; onClick: () => void; label: string }) {
   return (
@@ -124,7 +124,7 @@ export function VariantsTable({
             aria-label={`Select ${label}`}
             checked={validSelected.includes(index)}
             onChange={(event) => toggle([index], event.target.checked)}
-            className="size-4 accent-zinc-900"
+            className="size-4 accent-primary-600"
           />
         </td>
         <td className={`py-2 pr-3 ${nested ? "pl-8" : ""}`}>
@@ -189,7 +189,7 @@ export function VariantsTable({
                 if (event.key === "Enter") event.preventDefault();
               }}
               placeholder="Search variants"
-              className="w-48 rounded-lg border border-zinc-300 px-3 py-1.5 text-sm outline-none focus:border-zinc-900"
+              className="w-48 rounded-lg border border-zinc-300 px-3 py-1.5 text-sm outline-none focus:border-primary-600"
             />
           )}
           <button
@@ -218,7 +218,7 @@ export function VariantsTable({
                   aria-label="Select all variants"
                   checked={allSelected}
                   onChange={(event) => toggle(visibleIndices, event.target.checked)}
-                  className="size-4 accent-zinc-900"
+                  className="size-4 accent-primary-600"
                 />
               </th>
               <th className="py-2 pr-3 font-medium">Variant</th>
@@ -251,7 +251,7 @@ export function VariantsTable({
                           aria-label={`Select all ${group.value} variants`}
                           checked={groupSelected}
                           onChange={(event) => toggle(indices, event.target.checked)}
-                          className="size-4 accent-zinc-900"
+                          className="size-4 accent-primary-600"
                         />
                       </td>
                       <td className="py-2 pr-3">

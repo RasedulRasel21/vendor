@@ -85,7 +85,7 @@ export function SeoEditor({
         <label htmlFor="handle" className={labelClass}>
           URL handle
         </label>
-        <div className="flex items-stretch overflow-hidden rounded-lg border border-zinc-300 shadow-sm focus-within:border-zinc-900 focus-within:ring-2 focus-within:ring-zinc-900/10">
+        <div className="flex items-stretch overflow-hidden rounded-lg border border-zinc-300 shadow-sm focus-within:border-primary-600 focus-within:ring-2 focus-within:ring-primary-200/50">
           <span className="flex items-center bg-zinc-50 px-3 text-sm text-zinc-500">/products/</span>
           <input
             id="handle"

@@ -100,8 +100,10 @@ export function ProductEditor({
       <input type="hidden" name="payload" value={payload} />
 
       <div
-        className={`sticky top-0 z-20 -mx-6 mb-6 flex flex-wrap items-center justify-between gap-3 border-b px-6 py-3 transition-colors ${
-          dirty ? "border-zinc-800 bg-zinc-900 text-white" : "border-zinc-200 bg-zinc-50 text-zinc-600"
+        className={`sticky top-16 z-20 mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border px-4 py-2.5 transition-colors lg:top-4 ${
+          dirty
+            ? "border-zinc-700 bg-zinc-800 text-white shadow-lg shadow-zinc-900/15"
+            : "border-zinc-200 bg-white/90 text-zinc-600 backdrop-blur"
         }`}
       >
         <p className="text-sm font-medium">
@@ -125,7 +127,7 @@ export function ProductEditor({
             value="submit"
             disabled={pending || uploading}
             className={`rounded-lg px-3 py-1.5 text-sm font-semibold disabled:opacity-60 ${
-              dirty ? "bg-white text-zinc-900 hover:bg-zinc-100" : "bg-zinc-900 text-white hover:bg-zinc-700"
+              dirty ? "bg-white text-zinc-900 hover:bg-zinc-100" : "bg-primary-600 text-white hover:bg-primary-700"
             }`}
           >
             Submit for approval

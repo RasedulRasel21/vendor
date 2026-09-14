@@ -12,7 +12,7 @@ function Svg({ className, children }: IconProps & { children: React.ReactNode })
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden
-      className={className ?? "size-[18px]"}
+      className={className ?? "size-4.5"}
     >
       {children}
     </svg>

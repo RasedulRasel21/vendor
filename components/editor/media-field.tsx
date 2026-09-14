@@ -110,7 +110,7 @@ export function MediaField({
         <div
           {...dropHandlers}
           className={`rounded-lg border-2 border-dashed px-4 py-8 text-center transition-colors ${
-            dropActive ? "border-zinc-900 bg-zinc-50" : "border-zinc-300"
+            dropActive ? "border-primary-600 bg-zinc-50" : "border-zinc-300"
           }`}
         >
           <div className="flex flex-wrap justify-center gap-2">
@@ -142,7 +142,7 @@ export function MediaField({
               onDragEnd={() => setDragIndex(null)}
               className={`group relative cursor-grab overflow-hidden rounded-lg border bg-zinc-50 ${
                 index === 0 ? "col-span-2 row-span-2" : ""
-              } ${dragIndex === index ? "border-zinc-900 opacity-60" : "border-zinc-200"}`}
+              } ${dragIndex === index ? "border-primary-600 opacity-60" : "border-zinc-200"}`}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={url} alt="" draggable={false} className="aspect-square h-full w-full object-cover" />
@@ -173,7 +173,7 @@ export function MediaField({
                 onClick={() => setLibraryOpen(true)}
                 aria-label="Add images"
                 className={`flex aspect-square w-full items-center justify-center rounded-lg border-2 border-dashed text-3xl text-zinc-400 transition-colors hover:border-zinc-500 hover:text-zinc-700 ${
-                  dropActive ? "border-zinc-900 bg-zinc-50 text-zinc-700" : "border-zinc-300"
+                  dropActive ? "border-primary-600 bg-zinc-50 text-zinc-700" : "border-zinc-300"
                 }`}
               >
                 +

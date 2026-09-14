@@ -64,7 +64,7 @@ export function PayoutForm({ hasPayout, hasPendingRequest }: { hasPayout: boolea
             <label
               key={option.value}
               className={`cursor-pointer rounded-lg border px-3 py-2 text-sm font-medium ${
-                method === option.value ? "border-zinc-900 bg-zinc-900 text-white" : "border-zinc-300 text-zinc-800 hover:bg-zinc-100"
+                method === option.value ? "border-primary-600 bg-primary-600 text-white" : "border-zinc-300 text-zinc-800 hover:bg-zinc-100"
               }`}
             >
               <input
@@ -118,7 +118,7 @@ export function PayoutForm({ hasPayout, hasPendingRequest }: { hasPayout: boolea
         <button
           type="submit"
           disabled={pending}
-          className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-700 disabled:opacity-60"
+          className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-60"
         >
           {pending ? "Sending…" : "Send for approval"}
         </button>

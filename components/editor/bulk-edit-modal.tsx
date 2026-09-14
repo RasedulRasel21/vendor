@@ -93,7 +93,7 @@ export function BulkEditModal({
           <button type="button" onClick={onClose} className={secondaryButtonClass}>
             Cancel
           </button>
-          <button type="button" onClick={apply} className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-700">
+          <button type="button" onClick={apply} className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700">
             Apply to selected
           </button>
         </>

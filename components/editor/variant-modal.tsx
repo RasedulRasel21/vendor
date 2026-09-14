@@ -57,7 +57,7 @@ export function VariantModal({
           <button
             type="button"
             onClick={() => onDone(draft)}
-            className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-700"
+            className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700"
           >
             Done
           </button>

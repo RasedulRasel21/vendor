@@ -116,7 +116,7 @@ export function ContactForm({ contact }: { contact: Contact }) {
         <button
           type="submit"
           disabled={pending}
-          className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-700 disabled:opacity-60"
+          className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-60"
         >
           {pending ? "Saving…" : "Save contact details"}
         </button>

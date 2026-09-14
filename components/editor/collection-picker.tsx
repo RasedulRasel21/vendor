@@ -87,7 +87,7 @@ export function CollectionPicker({
                         type="checkbox"
                         checked={checked}
                         onChange={() => toggle(collection.collectionId)}
-                        className="size-4 accent-zinc-900"
+                        className="size-4 accent-primary-600"
                       />
                       {collection.imageUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element

@@ -139,7 +139,7 @@ export function OptionsEditor({
             type="button"
             onClick={finishEditing}
             disabled={!canFinish}
-            className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-700 disabled:opacity-40"
+            className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-40"
           >
             Done
           </button>

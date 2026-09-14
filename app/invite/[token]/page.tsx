@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { AuthShell } from "@/components/portal/auth-shell";
 import { findInvite } from "@/lib/invite";
 import { AcceptInviteForm } from "./accept-form";
 
@@ -28,39 +29,25 @@ export default async function InvitePage({ params }: PageProps<"/invite/[token]"
   const invite = await findInvite(token);
 
   return (
-    <main className="flex flex-1 items-center justify-center bg-zinc-50 px-4 py-16">
-      <div className="w-full max-w-md rounded-xl border border-zinc-200 bg-white p-8 shadow-sm">
-        <p className="text-sm text-zinc-500">StoreVendor vendor portal</p>
-
-        {invite.status === "valid" ? (
-          <>
-            <h1 className="mt-1 text-2xl font-semibold text-zinc-900">
-              Join {invite.vendorName}
-            </h1>
-            <p className="mt-2 text-sm text-zinc-600">
-              Set up your account to manage your products, orders, and earnings.
-            </p>
-            <AcceptInviteForm
-              token={token}
-              email={invite.email}
-              defaultName={invite.name ?? ""}
-            />
-          </>
-        ) : (
-          <>
-            <h1 className="mt-1 text-2xl font-semibold text-zinc-900">
-              {PROBLEMS[invite.status].heading}
-            </h1>
-            <p className="mt-2 text-sm text-zinc-600">{PROBLEMS[invite.status].body}</p>
-            <p className="mt-6 text-sm text-zinc-600">
-              Already set up your account?{" "}
-              <Link href="/login" className="font-medium text-zinc-900 underline">
-                Sign in
-              </Link>
-            </p>
-          </>
-        )}
-      </div>
-    </main>
+    <AuthShell>
+      {invite.status === "valid" ? (
+        <>
+          <h1 className="font-display text-3xl font-semibold tracking-tight">Join {invite.vendorName}</h1>
+          <p className="mt-2 text-zinc-600">Create your password to start adding products.</p>
+          <AcceptInviteForm token={token} email={invite.email} defaultName={invite.name ?? ""} />
+        </>
+      ) : (
+        <>
+          <h1 className="font-display text-3xl font-semibold tracking-tight">{PROBLEMS[invite.status].heading}</h1>
+          <p className="mt-2 text-zinc-600">{PROBLEMS[invite.status].body}</p>
+          <p className="mt-8 text-sm text-zinc-600">
+            Already set up your account?{" "}
+            <Link href="/login" className="font-semibold text-zinc-900 underline underline-offset-4">
+              Sign in
+            </Link>
+          </p>
+        </>
+      )}
+    </AuthShell>
   );
 }

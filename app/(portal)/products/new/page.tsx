@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { PageHeader } from "@/components/portal/page-header";
 import { db } from "@/lib/db";
 import { emptyDraft } from "@/lib/product-draft";
 import { requireVendorUser } from "@/lib/session";
@@ -22,10 +22,11 @@ export default async function NewProductPage() {
 
   return (
     <div>
-      <Link href="/products" className="text-sm text-zinc-600 hover:text-zinc-900">
-        ← Products
-      </Link>
-      <h1 className="mb-4 mt-2 text-2xl font-semibold text-zinc-900">Add product</h1>
+      <PageHeader
+        back={{ href: "/products", label: "Products" }}
+        title="Add product"
+        description="Save a draft anytime. Submit it when it's ready for the store to review."
+      />
       <ProductEditor
         submissionId={null}
         initialDraft={emptyDraft()}

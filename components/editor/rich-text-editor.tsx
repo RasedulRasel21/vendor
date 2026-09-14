@@ -51,7 +51,7 @@ const TEXT_COLORS = [
 ];
 
 const primaryButtonClass =
-  "rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-700 disabled:opacity-40";
+  "rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-40";
 
 const toolButtonClass = (active?: boolean) =>
   `flex h-8 min-w-8 items-center justify-center gap-0.5 rounded-md px-1.5 text-sm text-zinc-800 disabled:pointer-events-none disabled:opacity-40 ${
@@ -292,7 +292,7 @@ function LinkModal({ editor, onClose }: { editor: Editor; onClose: () => void })
             type="checkbox"
             checked={newWindow}
             onChange={(event) => setNewWindow(event.target.checked)}
-            className="size-4 accent-zinc-900"
+            className="size-4 accent-primary-600"
           />
           Open this link in a new window
         </label>
@@ -473,7 +473,7 @@ function Toolbar({
               onMouseDown={keepSelection}
               onClick={() => run((chain) => chain.setColor(color))}
               className={`size-6 rounded-md border ${
-                state?.color?.toLowerCase() === color ? "border-zinc-900 ring-2 ring-zinc-900/20" : "border-zinc-200"
+                state?.color?.toLowerCase() === color ? "border-primary-600 ring-2 ring-primary-200" : "border-zinc-200"
               }`}
               style={{ background: color }}
             />
@@ -637,7 +637,7 @@ export function RichTextEditor({
 
   return (
     <div
-      className={`rounded-lg border bg-white shadow-sm focus-within:border-zinc-900 focus-within:ring-2 focus-within:ring-zinc-900/10 ${
+      className={`rounded-lg border bg-white shadow-sm focus-within:border-primary-600 focus-within:ring-2 focus-within:ring-primary-200/50 ${
         invalid ? "border-red-500" : "border-zinc-300"
       }`}
     >
