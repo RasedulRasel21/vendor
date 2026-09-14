@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { createToken, hashToken } from "@/lib/tokens";
 
@@ -39,6 +40,13 @@ export async function getCurrentVendorUser() {
   const user = session.VendorUser;
   if (user.status !== "ACTIVE" || user.Vendor.status !== "ACTIVE") return null;
 
+  return user;
+}
+
+// For pages and Server Functions that need a signed-in vendor; sends everyone else to login.
+export async function requireVendorUser() {
+  const user = await getCurrentVendorUser();
+  if (!user) redirect("/login");
   return user;
 }
 
