@@ -1,6 +1,6 @@
 "use client";
 
-import { House, LogOut, Menu, Package, Plus, Settings, X } from "lucide-react";
+import { House, LogOut, Menu, Package, Plus, Settings, Truck, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -9,6 +9,7 @@ import { signOut } from "@/app/(portal)/sign-out";
 const NAV = [
   { href: "/dashboard", label: "Home", icon: House },
   { href: "/products", label: "Products", icon: Package },
+  { href: "/orders", label: "Orders", icon: Truck },
   { href: "/settings", label: "Settings", icon: Settings },
 ] as const;
 
@@ -28,12 +29,14 @@ export function PortalShell({
   userName,
   userEmail,
   productsNeedingChanges,
+  ordersToShip,
   children,
 }: {
   storeName: string;
   userName: string;
   userEmail: string;
   productsNeedingChanges: number;
+  ordersToShip: number;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -111,7 +114,8 @@ export function PortalShell({
         <nav aria-label="Main" className="mt-5 flex-1 space-y-1 px-4">
           {NAV.map(({ href, label, icon: Icon }) => {
             const active = isActive(href);
-            const badge = href === "/products" && productsNeedingChanges > 0 ? productsNeedingChanges : null;
+            const count = href === "/products" ? productsNeedingChanges : href === "/orders" ? ordersToShip : 0;
+            const badge = count > 0 ? count : null;
             return (
               <Link
                 key={href}
@@ -126,7 +130,11 @@ export function PortalShell({
                 <span className="flex-1">{label}</span>
                 {badge !== null && (
                   <span
-                    title={`${badge} ${badge === 1 ? "product needs" : "products need"} changes`}
+                    title={
+                      href === "/orders"
+                        ? `${badge} ${badge === 1 ? "order" : "orders"} to ship`
+                        : `${badge} ${badge === 1 ? "product needs" : "products need"} changes`
+                    }
                     className={`rounded-full px-1.5 text-xs font-semibold tabular-nums ${
                       active ? "bg-white text-primary-700" : "bg-secondary-600 text-white"
                     }`}

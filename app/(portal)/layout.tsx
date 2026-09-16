@@ -4,9 +4,10 @@ import { requireVendorUser } from "@/lib/session";
 
 export default async function PortalLayout({ children }: { children: React.ReactNode }) {
   const user = await requireVendorUser();
-  const productsNeedingChanges = await db.productSubmission.count({
-    where: { vendorId: user.vendorId, status: "REJECTED" },
-  });
+  const [productsNeedingChanges, ordersToShip] = await Promise.all([
+    db.productSubmission.count({ where: { vendorId: user.vendorId, status: "REJECTED" } }),
+    db.vendorOrder.count({ where: { vendorId: user.vendorId, status: "OPEN" } }),
+  ]);
 
   return (
     <PortalShell
@@ -14,6 +15,7 @@ export default async function PortalLayout({ children }: { children: React.React
       userName={user.name ?? user.email}
       userEmail={user.email}
       productsNeedingChanges={productsNeedingChanges}
+      ordersToShip={ordersToShip}
     >
       {children}
     </PortalShell>

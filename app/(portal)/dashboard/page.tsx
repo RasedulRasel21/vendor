@@ -1,4 +1,4 @@
-import { CircleAlert, CircleCheck, FilePen, Wallet } from "lucide-react";
+import { CircleAlert, CircleCheck, FilePen, Truck, Wallet } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { PageHeader } from "@/components/portal/page-header";
@@ -48,6 +48,8 @@ export default async function DashboardPage() {
     db.shopSettings.findUnique({ where: { shop: vendor.shop }, select: { currencyCode: true } }),
   ]);
 
+  const ordersToShip = await db.vendorOrder.count({ where: { vendorId: vendor.id, status: "OPEN" } });
+
   const count = (status: string) => grouped.find((row) => row.status === status)?._count._all ?? 0;
   const drafts = count("DRAFT");
   const awaiting = count("PENDING");
@@ -55,7 +57,20 @@ export default async function DashboardPage() {
   const currencyCode = settings?.currencyCode ?? "USD";
   const firstName = (user.name ?? "").trim().split(/\s+/)[0];
 
-  const tasks: Task[] = needsChanges.map((product) => ({
+  const tasks: Task[] = [];
+  if (ordersToShip > 0) {
+    tasks.push({
+      key: "ship",
+      icon: Truck,
+      tone: "bg-secondary-100 text-secondary-700",
+      title: `Ship ${ordersToShip} ${ordersToShip === 1 ? "order" : "orders"}`,
+      detail: "Customers are waiting. Add the courier and tracking when you send them.",
+      href: "/orders?status=OPEN",
+      action: "View orders",
+    });
+  }
+
+  tasks.push(...needsChanges.map((product) => ({
     key: `changes-${product.id}`,
     icon: CircleAlert,
     tone: "bg-red-50 text-red-600",
@@ -63,7 +78,7 @@ export default async function DashboardPage() {
     detail: product.reviewNote ?? "The store asked for changes before it can go live.",
     href: `/products/${product.id}`,
     action: "Fix product",
-  }));
+  })));
   if (changesRequested > needsChanges.length) {
     const more = changesRequested - needsChanges.length;
     tasks.push({
