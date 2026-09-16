@@ -238,8 +238,10 @@ model VendorOrder {
   presentmentCurrency String?
   presentmentSubtotal Decimal?          @db.Decimal(12, 2)
   shippingMethod      String?
+  refundedAt          DateTime?
   Vendor              Vendor            @relation(fields: [vendorId], references: [id], onDelete: Cascade)
   VendorOrderLine     VendorOrderLine[]
+  VendorReturn        VendorReturn[]
   VendorShipment      VendorShipment[]
 
   @@unique([shop, orderId, vendorId])
@@ -307,6 +309,21 @@ model ShopCarrier {
 
   @@unique([shop, name])
   @@index([shop, status])
+}
+
+model VendorReturn {
+  id            String      @id
+  vendorOrderId String
+  returnId      String
+  name          String?
+  status        String
+  items         Json
+  requestedAt   DateTime    @default(now())
+  updatedAt     DateTime
+  VendorOrder   VendorOrder @relation(fields: [vendorOrderId], references: [id], onDelete: Cascade)
+
+  @@unique([vendorOrderId, returnId])
+  @@index([vendorOrderId])
 }
 
 enum ShippingMode {

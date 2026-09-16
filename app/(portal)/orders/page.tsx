@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/portal/page-header";
 import { Pagination } from "@/components/portal/pagination";
 import { db } from "@/lib/db";
 import { formatMoney } from "@/lib/money";
-import { ORDER_STATUS, type OrderStatus } from "@/lib/order-status";
+import { ACTIVE_RETURN_STATUSES, ORDER_STATUS, type OrderStatus } from "@/lib/order-status";
 import { requireVendorUser } from "@/lib/session";
 import { secondaryButtonClass } from "@/lib/ui";
 
@@ -29,7 +29,18 @@ export default async function OrdersPage({ searchParams }: PageProps<"/orders">)
   // Orders the vendor hasn't opened are pinned above the rest, on every page, so a new
   // order never hides on page two.
   const unopened = { status: { in: ["OPEN", "PARTIAL"] as OrderStatus[] }, vendorSeenAt: null };
-  const rows = { orderBy: { placedAt: "desc" } as const, include: { _count: { select: { VendorOrderLine: true } } } };
+  const rows = {
+    orderBy: { placedAt: "desc" } as const,
+    include: {
+      _count: {
+        select: {
+          VendorOrderLine: true,
+          // Only returns still in play are worth a badge in the list.
+          VendorReturn: { where: { status: { in: ACTIVE_RETURN_STATUSES } } },
+        },
+      },
+    },
+  };
 
   const [newCount, grouped, toPack] = await Promise.all([
     db.vendorOrder.count({ where: { ...where, AND: [unopened] } }),
@@ -166,6 +177,11 @@ export default async function OrdersPage({ searchParams }: PageProps<"/orders">)
                           </span>
                         )}
                         <OrderStatusBadge status={order.status} />
+                        {order._count.VendorReturn > 0 && (
+                          <span className="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-800">
+                            Return
+                          </span>
+                        )}
                         {Number(order.refunded) > 0 && (
                           <span className="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-800">
                             Refunded

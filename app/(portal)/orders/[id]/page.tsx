@@ -1,4 +1,4 @@
-import { CircleCheck, Printer, RotateCcw, Truck } from "lucide-react";
+import { CircleCheck, Printer, RotateCcw, Truck, Undo2 } from "lucide-react";
 import type { Metadata } from "next";
 import { revalidatePath } from "next/cache";
 import Link from "next/link";
@@ -11,6 +11,7 @@ import { ProductThumb } from "@/components/portal/product-thumb";
 import { carrierOptions } from "@/lib/carriers";
 import { db } from "@/lib/db";
 import { formatMoney } from "@/lib/money";
+import { RETURN_STATUS } from "@/lib/order-status";
 import { requireVendorUser } from "@/lib/session";
 import { secondaryButtonClass } from "@/lib/ui";
 import { ShipForm, type ShippableLine } from "../ship-form";
@@ -34,6 +35,8 @@ type Address = {
 
 type ShipmentItem = { lineId: string; title: string; quantity: number };
 
+type ReturnItem = { lineId: string; title: string; quantity: number; reason: string | null; note: string | null };
+
 export default async function OrderPage({ params }: PageProps<"/orders/[id]">) {
   const user = await requireVendorUser();
   const { id } = await params;
@@ -43,6 +46,7 @@ export default async function OrderPage({ params }: PageProps<"/orders/[id]">) {
     include: {
       VendorOrderLine: { orderBy: { title: "asc" } },
       VendorShipment: { orderBy: { createdAt: "desc" } },
+      VendorReturn: { orderBy: { requestedAt: "desc" } },
     },
   });
   if (!order) notFound();
@@ -192,6 +196,51 @@ export default async function OrderPage({ params }: PageProps<"/orders/[id]">) {
                 You send your stock to the store and they pack and post it. Nothing to do here; your
                 earnings are counted either way.
               </p>
+            </Card>
+          )}
+
+          {order.VendorReturn.length > 0 && (
+            <Card
+              title="Returns"
+              description="The store handles returns with the customer. Refunded items come off your earnings."
+            >
+              <ul className="divide-y divide-zinc-100">
+                {order.VendorReturn.map((vendorReturn) => {
+                  const badge = RETURN_STATUS[vendorReturn.status];
+                  const items = (vendorReturn.items ?? []) as ReturnItem[];
+                  return (
+                    <li key={vendorReturn.id} className="flex items-start gap-3 py-3 first:pt-0 last:pb-0">
+                      <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-amber-50 text-amber-700">
+                        <Undo2 className="size-4" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-sm font-medium text-zinc-900">{vendorReturn.name ?? "Return"}</p>
+                          <span
+                            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                              badge?.className ?? "bg-zinc-100 text-zinc-600"
+                            }`}
+                          >
+                            {badge?.label ?? "Return"}
+                          </span>
+                        </div>
+                        <p className="text-sm text-zinc-500">
+                          {items
+                            .map((item) =>
+                              [`${item.quantity} × ${item.title}`, item.reason, item.note]
+                                .filter(Boolean)
+                                .join(" · "),
+                            )
+                            .join("; ")}
+                        </p>
+                        <p className="text-xs text-zinc-400">
+                          {`Asked for ${dateFormat.format(vendorReturn.requestedAt)}`}
+                        </p>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
             </Card>
           )}
 
