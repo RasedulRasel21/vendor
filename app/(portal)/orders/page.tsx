@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { OrderStatusBadge } from "@/components/portal/order-status-badge";
 import { PageHeader } from "@/components/portal/page-header";
+import { Pagination } from "@/components/portal/pagination";
 import { db } from "@/lib/db";
 import { formatMoney } from "@/lib/money";
 import { ORDER_STATUS, type OrderStatus } from "@/lib/order-status";
@@ -15,19 +16,23 @@ export const metadata: Metadata = {
 
 const dateFormat = new Intl.DateTimeFormat("en", { dateStyle: "medium" });
 
+const PER_PAGE = 25;
+
 export default async function OrdersPage({ searchParams }: PageProps<"/orders">) {
   const user = await requireVendorUser();
-  const { status: requested } = await searchParams;
+  const { status: requested, page: requestedPage } = await searchParams;
   const status =
     typeof requested === "string" && requested in ORDER_STATUS ? (requested as OrderStatus) : undefined;
+  const current = Math.max(1, Math.trunc(Number(requestedPage)) || 1);
 
-  const [orders, grouped, toPack] = await Promise.all([
-    db.vendorOrder.findMany({
-      where: { vendorId: user.vendorId, ...(status ? { status } : {}) },
-      orderBy: { placedAt: "desc" },
-      take: 100,
-      include: { _count: { select: { VendorOrderLine: true } } },
-    }),
+  const where = { vendorId: user.vendorId, ...(status ? { status } : {}) };
+  // Orders the vendor hasn't opened are pinned above the rest, on every page, so a new
+  // order never hides on page two.
+  const unopened = { status: { in: ["OPEN", "PARTIAL"] as OrderStatus[] }, vendorSeenAt: null };
+  const rows = { orderBy: { placedAt: "desc" } as const, include: { _count: { select: { VendorOrderLine: true } } } };
+
+  const [newCount, grouped, toPack] = await Promise.all([
+    db.vendorOrder.count({ where: { ...where, AND: [unopened] } }),
     db.vendorOrder.groupBy({ by: ["status"], where: { vendorId: user.vendorId }, _count: { _all: true } }),
     db.vendorOrder.count({
       where: {
@@ -38,13 +43,35 @@ export default async function OrdersPage({ searchParams }: PageProps<"/orders">)
     }),
   ]);
 
-  // Orders the vendor hasn't opened sit at the top; everything else stays newest first.
+  const offset = (current - 1) * PER_PAGE;
+  const newTake = Math.max(0, Math.min(PER_PAGE, newCount - offset));
+  const pinned = newTake
+    ? await db.vendorOrder.findMany({ where: { ...where, AND: [unopened] }, skip: offset, take: newTake, ...rows })
+    : [];
+  const rest =
+    pinned.length < PER_PAGE
+      ? await db.vendorOrder.findMany({
+          where: { ...where, NOT: { AND: [unopened] } },
+          skip: Math.max(0, offset - newCount),
+          take: PER_PAGE - pinned.length,
+          ...rows,
+        })
+      : [];
+  const orders = [...pinned, ...rest];
+
   const isNewOrder = (order: (typeof orders)[number]) =>
     !order.vendorSeenAt && ["OPEN", "PARTIAL"].includes(order.status);
-  orders.sort((a, b) => Number(isNewOrder(b)) - Number(isNewOrder(a)));
 
   const counts = Object.fromEntries(grouped.map((row) => [row.status, row._count._all]));
   const total = grouped.reduce((sum, row) => sum + row._count._all, 0);
+  const matching = status ? (counts[status] ?? 0) : total;
+  const pageHref = (number: number) => {
+    const params = new URLSearchParams({
+      ...(status ? { status } : {}),
+      ...(number > 1 ? { page: String(number) } : {}),
+    }).toString();
+    return params ? `/orders?${params}` : "/orders";
+  };
 
   const filters: { label: string; value?: OrderStatus; count: number }[] = [
     { label: "All", count: total },
@@ -161,6 +188,18 @@ export default async function OrdersPage({ searchParams }: PageProps<"/orders">)
             </table>
           </div>
         )}
+
+        <Pagination
+          page={{
+            current,
+            from: matching === 0 ? 0 : offset + 1,
+            to: offset + orders.length,
+            total: matching,
+            hasPrevious: current > 1,
+            hasNext: offset + orders.length < matching,
+          }}
+          href={pageHref}
+        />
       </div>
     </div>
   );
