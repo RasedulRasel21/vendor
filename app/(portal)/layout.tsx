@@ -6,7 +6,9 @@ export default async function PortalLayout({ children }: { children: React.React
   const user = await requireVendorUser();
   const [productsNeedingChanges, ordersToShip] = await Promise.all([
     db.productSubmission.count({ where: { vendorId: user.vendorId, status: "REJECTED" } }),
-    db.vendorOrder.count({ where: { vendorId: user.vendorId, status: "OPEN" } }),
+    db.vendorOrder.count({
+      where: { vendorId: user.vendorId, status: "OPEN", shippingMode: "VENDOR_SHIPS" },
+    }),
   ]);
 
   return (

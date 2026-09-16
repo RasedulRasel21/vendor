@@ -224,6 +224,7 @@ model VendorOrder {
   cancelledAt     DateTime?
   createdAt       DateTime          @default(now())
   updatedAt       DateTime
+  shippingMode    ShippingMode      @default(VENDOR_SHIPS)
   Vendor          Vendor            @relation(fields: [vendorId], references: [id], onDelete: Cascade)
   VendorOrderLine VendorOrderLine[]
 

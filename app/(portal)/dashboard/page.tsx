@@ -48,7 +48,10 @@ export default async function DashboardPage() {
     db.shopSettings.findUnique({ where: { shop: vendor.shop }, select: { currencyCode: true } }),
   ]);
 
-  const ordersToShip = await db.vendorOrder.count({ where: { vendorId: vendor.id, status: "OPEN" } });
+  // Orders the store ships aren't the vendor's job, so they don't show up as a task.
+  const ordersToShip = await db.vendorOrder.count({
+    where: { vendorId: vendor.id, status: "OPEN", shippingMode: "VENDOR_SHIPS" },
+  });
 
   const count = (status: string) => grouped.find((row) => row.status === status)?._count._all ?? 0;
   const drafts = count("DRAFT");

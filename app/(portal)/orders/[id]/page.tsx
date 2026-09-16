@@ -38,7 +38,9 @@ export default async function OrderPage({ params }: PageProps<"/orders/[id]">) {
   if (!order) notFound();
 
   const currency = order.currencyCode;
-  const address = (order.shippingAddress ?? null) as Address | null;
+  const storeShips = order.shippingMode === "STORE_SHIPS";
+  // The buyer's address is only shown to the vendor who actually posts the parcel.
+  const address = storeShips ? null : ((order.shippingAddress ?? null) as Address | null);
   const addressLines = address
     ? [
         address.name,
@@ -69,7 +71,7 @@ export default async function OrderPage({ params }: PageProps<"/orders/[id]">) {
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
         <div className="space-y-6">
-          <Card title="Items to ship">
+          <Card title={storeShips ? "Items in this order" : "Items to ship"}>
             <ul className="divide-y divide-zinc-100">
               {order.VendorOrderLine.map((line) => (
                 <li key={line.id} className="flex items-center gap-4 py-3 first:pt-0 last:pb-0">
@@ -90,23 +92,35 @@ export default async function OrderPage({ params }: PageProps<"/orders/[id]">) {
             </ul>
           </Card>
 
-          {order.status === "OPEN" && (
-            <Card title="Ship this order" description="Add the courier and tracking, then mark it shipped.">
-              <ShipForm vendorOrderId={order.id} />
-            </Card>
-          )}
+          {order.status === "OPEN" &&
+            (storeShips ? (
+              <Card title="The store ships this order">
+                <p className="text-sm text-zinc-600">
+                  You send your stock to the store and they pack and post it. Nothing to do here; your
+                  earnings are counted either way.
+                </p>
+              </Card>
+            ) : (
+              <Card title="Ship this order" description="Add the courier and tracking, then mark it shipped.">
+                <ShipForm vendorOrderId={order.id} />
+              </Card>
+            ))}
         </div>
 
         <div className="space-y-6">
-          <Card title="Ship to">
-            {addressLines.length ? (
+          <Card title={storeShips ? "Delivery" : "Ship to"}>
+            {storeShips ? (
+              <p className="text-sm text-zinc-600">
+                The store handles delivery for this order, so the customer&apos;s address stays with them.
+              </p>
+            ) : addressLines.length ? (
               <address className="not-italic text-sm leading-6 text-zinc-800">
                 {addressLines.map((line) => (
                   <span key={line} className="block">
                     {line}
                   </span>
                 ))}
-                {(address?.phone || order.customerPhone) && (
+                {(address?.phone ?? order.customerPhone) && (
                   <span className="mt-2 block text-zinc-600">{address?.phone ?? order.customerPhone}</span>
                 )}
               </address>
