@@ -1,4 +1,4 @@
-import { CircleCheck, Printer, Truck } from "lucide-react";
+import { CircleCheck, Printer, RotateCcw, Truck } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -86,6 +86,20 @@ export default async function OrderPage({ params }: PageProps<"/orders/[id]">) {
           )
         }
       />
+
+      {isRefunded && (
+        <div className="mb-6 flex gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <RotateCcw className="mt-0.5 size-4 shrink-0" />
+          <div>
+            <p className="font-semibold">
+              {`The store refunded ${formatMoney(order.refunded.toFixed(2), currency)} of this order`}
+            </p>
+            <p className="mt-1">
+              {`Your earnings drop by ${formatMoney(order.refundedEarnings.toFixed(2), currency)}, and the store's commission on the refunded items comes off too. Refunded items don't need sending.`}
+            </p>
+          </div>
+        </div>
+      )}
 
       {order.status === "FULFILLED" && (
         <p className="mb-6 flex items-center gap-2 rounded-xl border border-primary-100 bg-primary-50 px-4 py-3 text-sm text-primary-700">

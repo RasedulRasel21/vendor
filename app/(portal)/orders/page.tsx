@@ -100,16 +100,20 @@ export default async function OrdersPage({ searchParams }: PageProps<"/orders">)
                       </span>
                     </td>
                     <td className="px-3 py-3">
-                      <OrderStatusBadge status={order.status} />
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <OrderStatusBadge status={order.status} />
+                        {Number(order.refunded) > 0 && (
+                          <span className="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-800">
+                            Refunded
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-3 py-3 text-zinc-700">{order.customerName ?? "—"}</td>
                     <td className="px-3 py-3 text-right font-medium tabular-nums text-zinc-900">
                       {formatMoney(
                         (Number(order.earnings) - Number(order.refundedEarnings)).toFixed(2),
                         order.currencyCode,
-                      )}
-                      {Number(order.refunded) > 0 && (
-                        <span className="block text-xs font-normal text-amber-700">After refund</span>
                       )}
                     </td>
                     <td className="px-6 py-3 text-right text-zinc-500">{dateFormat.format(order.placedAt)}</td>
