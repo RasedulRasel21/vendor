@@ -33,7 +33,16 @@ export default async function ProductsPage({ searchParams }: PageProps<"/product
         ...(query ? { title: { contains: query, mode: "insensitive" as const } } : {}),
       },
       orderBy: { updatedAt: "desc" },
-      select: { id: true, title: true, status: true, imageUrls: true, price: true, variants: true, updatedAt: true },
+      select: {
+        id: true,
+        title: true,
+        status: true,
+        imageUrls: true,
+        price: true,
+        variants: true,
+        updatedAt: true,
+        pendingSubmittedAt: true,
+      },
     }),
     db.productSubmission.groupBy({ by: ["status"], where: { vendorId: user.vendorId }, _count: { _all: true } }),
     db.shopSettings.findUnique({ where: { shop: user.Vendor.shop }, select: { currencyCode: true } }),
@@ -162,6 +171,9 @@ export default async function ProductsPage({ searchParams }: PageProps<"/product
                       </td>
                       <td className="px-3 py-3">
                         <StatusBadge status={submission.status} />
+                        {submission.pendingSubmittedAt && (
+                          <span className="mt-1 block text-xs text-amber-700">Changes pending</span>
+                        )}
                       </td>
                       <td className="px-3 py-3 text-right tabular-nums text-zinc-800">
                         {submission.price ? formatMoney(submission.price.toFixed(2), currencyCode) : "—"}

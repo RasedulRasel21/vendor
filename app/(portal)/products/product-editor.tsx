@@ -33,6 +33,7 @@ export function ProductEditor({
   vendorId,
   currencyCode,
   collections,
+  mode = "draft",
 }: {
   submissionId: string | null;
   initialDraft: ProductDraft;
@@ -40,6 +41,8 @@ export function ProductEditor({
   vendorId: string;
   currencyCode: string;
   collections: CollectionOption[];
+  // "live" products are edited through review; "pending" ones are still waiting for a first review.
+  mode?: "draft" | "pending" | "live";
 }) {
   const [draft, setDraft] = useState(initialDraft);
   const [uploading, setUploading] = useState(false);
@@ -110,17 +113,19 @@ export function ProductEditor({
           {pending ? "Saving…" : uploading ? "Uploading images…" : dirty ? "Unsaved changes" : "No unsaved changes"}
         </p>
         <div className="flex gap-2">
-          <button
-            type="submit"
-            name="intent"
-            value="draft"
-            disabled={pending || uploading}
-            className={`rounded-lg border px-3 py-1.5 text-sm font-semibold disabled:opacity-60 ${
-              dirty ? "border-zinc-600 text-white hover:bg-zinc-800" : "border-zinc-300 bg-white text-zinc-800 hover:bg-zinc-100"
-            }`}
-          >
-            Save draft
-          </button>
+          {mode === "draft" && (
+            <button
+              type="submit"
+              name="intent"
+              value="draft"
+              disabled={pending || uploading}
+              className={`rounded-lg border px-3 py-1.5 text-sm font-semibold disabled:opacity-60 ${
+                dirty ? "border-zinc-600 text-white hover:bg-zinc-800" : "border-zinc-300 bg-white text-zinc-800 hover:bg-zinc-100"
+              }`}
+            >
+              Save draft
+            </button>
+          )}
           <button
             type="submit"
             name="intent"
@@ -130,7 +135,7 @@ export function ProductEditor({
               dirty ? "bg-white text-zinc-900 hover:bg-zinc-100" : "bg-primary-600 text-white hover:bg-primary-700"
             }`}
           >
-            Submit for approval
+            {mode === "live" ? "Submit changes for approval" : mode === "pending" ? "Save changes" : "Submit for approval"}
           </button>
         </div>
       </div>
@@ -246,7 +251,11 @@ export function ProductEditor({
         <aside className="space-y-6">
           <Card title="Status">
             <p className="text-sm text-zinc-600">
-              Save a draft anytime. When it&apos;s ready, submit it: the store reviews every product before it goes live.
+              {mode === "live"
+                ? "This product is live. Your changes don't touch the store's copy until the store approves them."
+                : mode === "pending"
+                  ? "The store is reviewing this product. Any changes you save now are part of what they review."
+                  : "Save a draft anytime. When it's ready, submit it: the store reviews every product before it goes live."}
             </p>
           </Card>
 

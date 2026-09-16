@@ -4,10 +4,10 @@ import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/portal/page-header";
 import { StatusBadge } from "@/components/status-badge";
 import { db } from "@/lib/db";
-import { formatMoney } from "@/lib/money";
-import { draftFromSubmission, variantLabel } from "@/lib/product-draft";
-import { EDITABLE_STATUSES } from "@/lib/product-status";
+import { draftFromSubmission } from "@/lib/product-draft";
 import { requireVendorUser } from "@/lib/session";
+import { secondaryButtonClass } from "@/lib/ui";
+import { discardPendingChanges } from "../actions";
 import { ProductEditor } from "../product-editor";
 
 export const metadata: Metadata = {
@@ -17,7 +17,11 @@ export const metadata: Metadata = {
 const SAVED_MESSAGES: Record<string, string> = {
   draft: "Draft saved.",
   submitted: "Submitted for approval. The store will review it soon.",
+  updated: "Changes saved. The store sees them when they review this product.",
+  changes: "Changes sent to the store for approval.",
 };
+
+const dateFormat = new Intl.DateTimeFormat("en", { dateStyle: "medium" });
 
 export default async function ProductPage({ params, searchParams }: PageProps<"/products/[id]">) {
   const user = await requireVendorUser();
@@ -35,10 +39,16 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
   ]);
   if (!submission) notFound();
 
-  const draft = draftFromSubmission(submission);
-  const editable = EDITABLE_STATUSES.includes(submission.status);
+  const isLive = submission.status === "APPROVED";
+  const pendingDraft = (submission.pendingDraft ?? null) as Record<string, unknown> | null;
+  // While a live product has an edit, the editor shows the edit, not the store's copy.
+  const draft = draftFromSubmission(
+    pendingDraft ? { ...submission, ...pendingDraft } : submission,
+  );
   const savedMessage = typeof saved === "string" ? SAVED_MESSAGES[saved] : undefined;
-  const currencyCode = settings?.currencyCode ?? "USD";
+  const mode = isLive ? "live" : submission.status === "PENDING" ? "pending" : "draft";
+
+  const discard = discardPendingChanges.bind(null, submission.id);
 
   return (
     <div>
@@ -68,58 +78,52 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
         </div>
       )}
 
-      {editable ? (
-        <ProductEditor
-          submissionId={submission.id}
-          initialDraft={draft}
-          shopDomain={user.Vendor.shop}
-          vendorId={user.vendorId}
-          currencyCode={currencyCode}
-          collections={collections}
-        />
-      ) : (
-        <div className="max-w-3xl space-y-4">
-          <p className="flex items-center gap-2 card-surface px-4 py-3 text-sm text-zinc-700">
-            {submission.status === "PENDING" ? (
-              <Clock className="size-4 shrink-0 text-amber-600" />
-            ) : (
-              <CircleCheck className="size-4 shrink-0 text-emerald-600" />
-            )}
-            {submission.status === "PENDING"
-              ? "The store is reviewing this product, so it can't be edited right now."
-              : "This product is approved and live in the store."}
-          </p>
-          <div className="overflow-x-auto card-surface">
-            <table className="w-full text-left text-sm">
-              <thead className="text-zinc-500">
-                <tr>
-                  <th className="px-5 py-3 font-medium">Variant</th>
-                  <th className="px-3 py-3 text-right font-medium">Price</th>
-                  <th className="px-3 py-3 font-medium">SKU</th>
-                  <th className="px-5 py-3 text-right font-medium">Available</th>
-                </tr>
-              </thead>
-              <tbody>
-                {draft.variants.map((variant) => {
-                  const label = variantLabel(variant.optionValues, draft.options) || "Default";
-                  return (
-                    <tr key={label} className="border-t border-zinc-100">
-                      <td className="px-5 py-3 font-medium text-zinc-900">{label}</td>
-                      <td className="px-3 py-3 text-right tabular-nums text-zinc-800">
-                        {variant.price ? formatMoney(variant.price, currencyCode) : "—"}
-                      </td>
-                      <td className="px-3 py-3 text-zinc-700">{variant.sku || "—"}</td>
-                      <td className="px-5 py-3 text-right tabular-nums text-zinc-800">
-                        {variant.trackInventory ? variant.inventoryQuantity || "0" : "Not tracked"}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+      {isLive && submission.pendingSubmittedAt && (
+        <div className="mb-6 flex flex-wrap items-start justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <div className="flex gap-3">
+            <Clock className="mt-0.5 size-4 shrink-0" />
+            <div>
+              <p className="font-semibold">Changes waiting for the store to approve</p>
+              <p className="mt-1">
+                {`Sent ${dateFormat.format(submission.pendingSubmittedAt)}. The live product keeps its current details until then, and you can keep editing.`}
+              </p>
+            </div>
           </div>
+          <form action={discard}>
+            <button type="submit" className={`${secondaryButtonClass} border-amber-300 bg-white text-amber-900`}>
+              Discard changes
+            </button>
+          </form>
         </div>
       )}
+
+      {isLive && !submission.pendingSubmittedAt && submission.pendingReviewNote && (
+        <div className="mb-6 flex flex-wrap items-start justify-between gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          <div className="flex gap-3">
+            <CircleAlert className="mt-0.5 size-4 shrink-0" />
+            <div>
+              <p className="font-semibold">The store didn&apos;t approve your changes</p>
+              <p className="mt-1 whitespace-pre-line">{submission.pendingReviewNote}</p>
+              <p className="mt-1">Your edits are still here. Update them and submit again.</p>
+            </div>
+          </div>
+          <form action={discard}>
+            <button type="submit" className={`${secondaryButtonClass} border-red-300 bg-white text-red-800`}>
+              Discard changes
+            </button>
+          </form>
+        </div>
+      )}
+
+      <ProductEditor
+        submissionId={submission.id}
+        initialDraft={draft}
+        shopDomain={user.Vendor.shop}
+        vendorId={user.vendorId}
+        currencyCode={settings?.currencyCode ?? "USD"}
+        collections={collections}
+        mode={mode}
+      />
     </div>
   );
 }

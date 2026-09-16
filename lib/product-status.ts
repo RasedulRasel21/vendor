@@ -6,6 +6,3 @@ export const SUBMISSION_STATUS = {
 } as const;
 
 export type SubmissionStatus = keyof typeof SUBMISSION_STATUS;
-
-// Vendors can change a product until it's waiting for review or approved.
-export const EDITABLE_STATUSES: SubmissionStatus[] = ["DRAFT", "REJECTED"];

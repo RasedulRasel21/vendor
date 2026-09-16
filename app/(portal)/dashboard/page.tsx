@@ -48,10 +48,10 @@ export default async function DashboardPage() {
     db.shopSettings.findUnique({ where: { shop: vendor.shop }, select: { currencyCode: true } }),
   ]);
 
-  // Orders the store ships aren't the vendor's job, so they don't show up as a task.
-  const ordersToShip = await db.vendorOrder.count({
-    where: { vendorId: vendor.id, status: "OPEN", shippingMode: "VENDOR_SHIPS" },
-  });
+  const [ordersToShip, ordersStoreShips] = await Promise.all([
+    db.vendorOrder.count({ where: { vendorId: vendor.id, status: "OPEN", shippingMode: "VENDOR_SHIPS" } }),
+    db.vendorOrder.count({ where: { vendorId: vendor.id, status: "OPEN", shippingMode: "STORE_SHIPS" } }),
+  ]);
 
   const count = (status: string) => grouped.find((row) => row.status === status)?._count._all ?? 0;
   const drafts = count("DRAFT");
@@ -68,6 +68,18 @@ export default async function DashboardPage() {
       tone: "bg-secondary-100 text-secondary-700",
       title: `Ship ${ordersToShip} ${ordersToShip === 1 ? "order" : "orders"}`,
       detail: "Customers are waiting. Add the courier and tracking when you send them.",
+      href: "/orders?status=OPEN",
+      action: "View orders",
+    });
+  }
+
+  if (ordersStoreShips > 0) {
+    tasks.push({
+      key: "store-ships",
+      icon: Truck,
+      tone: "bg-zinc-100 text-zinc-600",
+      title: `${ordersStoreShips} new ${ordersStoreShips === 1 ? "order" : "orders"} the store ships`,
+      detail: "Your items sold. The store packs and posts these, and your earnings are counted.",
       href: "/orders?status=OPEN",
       action: "View orders",
     });

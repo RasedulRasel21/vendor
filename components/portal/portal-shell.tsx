@@ -29,14 +29,14 @@ export function PortalShell({
   userName,
   userEmail,
   productsNeedingChanges,
-  ordersToShip,
+  openOrders,
   children,
 }: {
   storeName: string;
   userName: string;
   userEmail: string;
   productsNeedingChanges: number;
-  ordersToShip: number;
+  openOrders: number;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -114,7 +114,7 @@ export function PortalShell({
         <nav aria-label="Main" className="mt-5 flex-1 space-y-1 px-4">
           {NAV.map(({ href, label, icon: Icon }) => {
             const active = isActive(href);
-            const count = href === "/products" ? productsNeedingChanges : href === "/orders" ? ordersToShip : 0;
+            const count = href === "/products" ? productsNeedingChanges : href === "/orders" ? openOrders : 0;
             const badge = count > 0 ? count : null;
             return (
               <Link
@@ -132,7 +132,7 @@ export function PortalShell({
                   <span
                     title={
                       href === "/orders"
-                        ? `${badge} ${badge === 1 ? "order" : "orders"} to ship`
+                        ? `${badge} open ${badge === 1 ? "order" : "orders"}`
                         : `${badge} ${badge === 1 ? "product needs" : "products need"} changes`
                     }
                     className={`rounded-full px-1.5 text-xs font-semibold tabular-nums ${
