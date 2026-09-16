@@ -22,7 +22,8 @@ export default async function OrdersPage({ searchParams }: PageProps<"/orders">)
   const [orders, grouped] = await Promise.all([
     db.vendorOrder.findMany({
       where: { vendorId: user.vendorId, ...(status ? { status } : {}) },
-      orderBy: { placedAt: "desc" },
+      // Orders the vendor hasn't opened sit at the top, newest first within each group.
+      orderBy: [{ vendorSeenAt: { sort: "asc", nulls: "first" } }, { placedAt: "desc" }],
       take: 100,
       include: { _count: { select: { VendorOrderLine: true } } },
     }),
@@ -89,8 +90,15 @@ export default async function OrdersPage({ searchParams }: PageProps<"/orders">)
                 </tr>
               </thead>
               <tbody>
-                {orders.map((order) => (
-                  <tr key={order.id} className="group border-t border-zinc-100 transition hover:bg-zinc-50">
+                {orders.map((order) => {
+                  const isNew = !order.vendorSeenAt && ["OPEN", "PARTIAL"].includes(order.status);
+                  return (
+                  <tr
+                    key={order.id}
+                    className={`group border-t border-zinc-100 transition ${
+                      isNew ? "bg-primary-50 hover:bg-primary-100" : "hover:bg-zinc-50"
+                    }`}
+                  >
                     <td className="px-6 py-3">
                       <Link href={`/orders/${order.id}`} className="font-medium text-zinc-900 group-hover:underline">
                         {order.orderName}
@@ -101,7 +109,7 @@ export default async function OrdersPage({ searchParams }: PageProps<"/orders">)
                     </td>
                     <td className="px-3 py-3">
                       <div className="flex flex-wrap items-center gap-1.5">
-                        {!order.vendorSeenAt && ["OPEN", "PARTIAL"].includes(order.status) && (
+                        {isNew && (
                           <span className="inline-flex items-center rounded-full bg-primary-600 px-2.5 py-0.5 text-xs font-semibold text-white">
                             New
                           </span>
@@ -123,7 +131,8 @@ export default async function OrdersPage({ searchParams }: PageProps<"/orders">)
                     </td>
                     <td className="px-6 py-3 text-right text-zinc-500">{dateFormat.format(order.placedAt)}</td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
