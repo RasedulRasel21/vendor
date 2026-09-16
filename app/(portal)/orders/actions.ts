@@ -3,6 +3,7 @@
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
+import { ISSUE_REASONS } from "@/lib/order-issues";
 import { requireVendorUser } from "@/lib/session";
 import { requestFulfillment } from "@/lib/store-app";
 
@@ -78,6 +79,92 @@ export async function requestCarrier(
 
   // Every order page shows the courier list, so refresh the whole section.
   revalidatePath("/orders", "layout");
+  return { ok: true };
+}
+
+export type IssueFormState = {
+  ok?: boolean;
+  errors?: Record<string, string>;
+};
+
+// Cancelling and refunding are the store's to do, so this tells them rather than doing it.
+export async function reportProblem(
+  vendorOrderId: string,
+  _previousState: IssueFormState,
+  formData: FormData,
+): Promise<IssueFormState> {
+  const user = await requireVendorUser();
+
+  const order = await db.vendorOrder.findFirst({
+    where: { id: vendorOrderId, vendorId: user.vendorId },
+    select: { id: true, orderName: true, status: true },
+  });
+  if (!order) return { errors: { form: "This order wasn't found." } };
+  if (!["OPEN", "PARTIAL"].includes(order.status)) {
+    return { errors: { form: "This order is already shipped or cancelled." } };
+  }
+
+  const reason = field(formData, "reason");
+  const note = field(formData, "note").slice(0, 1000);
+  if (!(reason in ISSUE_REASONS)) return { errors: { reason: "Pick what's wrong" } };
+  if (reason === "OTHER" && note.length < 5) {
+    return { errors: { note: "Tell the store what the problem is" } };
+  }
+
+  const open = await db.vendorOrderIssue.findFirst({
+    where: { vendorOrderId: order.id, status: "OPEN" },
+    select: { id: true },
+  });
+  if (open) return { errors: { form: "You've already told the store about this order." } };
+
+  await db.$transaction([
+    db.vendorOrderIssue.create({
+      data: { id: randomUUID(), vendorOrderId: order.id, reason, note: note || null },
+    }),
+    db.vendorActivity.create({
+      data: {
+        id: randomUUID(),
+        vendorId: user.vendorId,
+        action: "order.issue_raised",
+        actor: `vendor_user:${user.id}`,
+        details: { orderName: order.orderName, reason, note: note || null },
+      },
+    }),
+  ]);
+
+  revalidatePath("/orders");
+  revalidatePath(`/orders/${order.id}`);
+  return { ok: true };
+}
+
+// The vendor sorted it out themselves, so the store shouldn't still be chasing it.
+export async function withdrawProblem(vendorOrderId: string): Promise<IssueFormState> {
+  const user = await requireVendorUser();
+
+  const issue = await db.vendorOrderIssue.findFirst({
+    where: { vendorOrderId, status: "OPEN", VendorOrder: { vendorId: user.vendorId } },
+    select: { id: true, VendorOrder: { select: { orderName: true } } },
+  });
+  if (!issue) return { errors: { form: "There's nothing open on this order." } };
+
+  await db.$transaction([
+    db.vendorOrderIssue.update({
+      where: { id: issue.id },
+      data: { status: "WITHDRAWN", resolvedAt: new Date() },
+    }),
+    db.vendorActivity.create({
+      data: {
+        id: randomUUID(),
+        vendorId: user.vendorId,
+        action: "order.issue_withdrawn",
+        actor: `vendor_user:${user.id}`,
+        details: { orderName: issue.VendorOrder.orderName },
+      },
+    }),
+  ]);
+
+  revalidatePath("/orders");
+  revalidatePath(`/orders/${vendorOrderId}`);
   return { ok: true };
 }
 
