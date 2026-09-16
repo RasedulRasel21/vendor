@@ -55,7 +55,7 @@ export function PortalShell({
 
   return (
     <div className="min-h-dvh lg:grid lg:grid-cols-[16rem_minmax(0,1fr)]">
-      <header className="sticky top-0 z-30 flex h-14 items-center justify-between bg-white/90 px-4 shadow-[0_1px_8px_rgb(19_27_46/0.06)] backdrop-blur lg:hidden">
+      <header className="sticky top-0 z-30 flex h-14 items-center justify-between bg-white/90 px-4 shadow-[0_1px_8px_rgb(19_27_46/0.06)] backdrop-blur print:hidden lg:hidden">
         <div className="flex min-w-0 items-center gap-2.5">
           <BrandMark name={storeName} />
           <span className="truncate font-display font-semibold">{storeName}</span>
@@ -78,7 +78,7 @@ export function PortalShell({
 
       <aside
         id="portal-sidebar"
-        className={`fixed inset-y-0 left-0 z-50 flex w-64 flex-col bg-white shadow-[1px_0_8px_rgb(19_27_46/0.05)] transition-transform duration-200 lg:sticky lg:top-0 lg:h-dvh lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-64 flex-col bg-white shadow-[1px_0_8px_rgb(19_27_46/0.05)] transition-transform duration-200 print:hidden lg:sticky lg:top-0 lg:h-dvh lg:translate-x-0 ${
           menuOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -173,7 +173,7 @@ export function PortalShell({
         </div>
       </aside>
 
-      <main className="min-w-0 px-4 pb-16 pt-6 sm:px-6 lg:px-8 lg:pt-8">
+      <main className="min-w-0 px-4 pb-16 pt-6 print:p-0 sm:px-6 lg:px-8 lg:pt-8">
         <div className="mx-auto w-full max-w-6xl">{children}</div>
       </main>
     </div>

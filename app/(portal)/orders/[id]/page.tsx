@@ -1,5 +1,6 @@
-import { CircleCheck, Truck } from "lucide-react";
+import { CircleCheck, Printer, Truck } from "lucide-react";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Card } from "@/components/editor/card";
 import { OrderStatusBadge } from "@/components/portal/order-status-badge";
@@ -8,6 +9,7 @@ import { ProductThumb } from "@/components/portal/product-thumb";
 import { db } from "@/lib/db";
 import { formatMoney } from "@/lib/money";
 import { requireVendorUser } from "@/lib/session";
+import { secondaryButtonClass } from "@/lib/ui";
 import { ShipForm, type ShippableLine } from "../ship-form";
 
 export const metadata: Metadata = {
@@ -75,6 +77,14 @@ export default async function OrderPage({ params }: PageProps<"/orders/[id]">) {
         title={order.orderName}
         description={`Placed ${dateFormat.format(order.placedAt)}`}
         meta={<OrderStatusBadge status={order.status} />}
+        actions={
+          storeShips ? null : (
+            <Link href={`/orders/${order.id}/packing-slip`} className={secondaryButtonClass}>
+              <Printer className="size-4" />
+              Packing slip
+            </Link>
+          )
+        }
       />
 
       {order.status === "FULFILLED" && (

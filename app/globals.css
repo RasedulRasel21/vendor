@@ -91,6 +91,13 @@ dialog[open]::backdrop {
   }
 }
 
+/* Packing slips print on plain paper, without the dashboard around them. */
+@media print {
+  body {
+    background: #ffffff;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
