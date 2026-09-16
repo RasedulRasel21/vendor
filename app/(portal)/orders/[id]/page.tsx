@@ -15,7 +15,7 @@ import { issueReasonLabel } from "@/lib/order-issues";
 import { RETURN_STATUS } from "@/lib/order-status";
 import { requireVendorUser } from "@/lib/session";
 import { secondaryButtonClass } from "@/lib/ui";
-import { ProblemForm } from "../problem-form";
+import { IssueBanner, ProblemForm } from "../problem-form";
 import { ShipForm, type ShippableLine } from "../ship-form";
 
 export const metadata: Metadata = {
@@ -49,7 +49,8 @@ export default async function OrderPage({ params }: PageProps<"/orders/[id]">) {
       VendorOrderLine: { orderBy: { title: "asc" } },
       VendorShipment: { orderBy: { createdAt: "desc" } },
       VendorReturn: { orderBy: { requestedAt: "desc" } },
-      VendorOrderIssue: { where: { status: "OPEN" }, orderBy: { createdAt: "desc" }, take: 1 },
+      // The latest one, open or closed: a closed one still carries what the store did about it.
+      VendorOrderIssue: { orderBy: { createdAt: "desc" }, take: 1 },
     },
   });
   if (!order) notFound();
@@ -85,7 +86,18 @@ export default async function OrderPage({ params }: PageProps<"/orders/[id]">) {
 
   const canShip = !storeShips && ["OPEN", "PARTIAL"].includes(order.status) && shippableLines.length > 0;
   const carriers = canShip ? await carrierOptions(user.Vendor.shop, user.vendorId) : null;
-  const openIssue = order.VendorOrderIssue[0] ?? null;
+  const latestIssue = order.VendorOrderIssue[0] ?? null;
+  const issue =
+    latestIssue && ["OPEN", "RESOLVED"].includes(latestIssue.status)
+      ? {
+          status: latestIssue.status,
+          reason: issueReasonLabel(latestIssue.reason),
+          note: latestIssue.note,
+          raisedAt: dateFormat.format(latestIssue.createdAt),
+          reviewNote: latestIssue.reviewNote,
+          closedAt: latestIssue.resolvedAt ? dateFormat.format(latestIssue.resolvedAt) : null,
+        }
+      : null;
 
   const address = storeShips ? null : ((order.shippingAddress ?? null) as Address | null);
   const addressLines = address
@@ -114,6 +126,8 @@ export default async function OrderPage({ params }: PageProps<"/orders/[id]">) {
           )
         }
       />
+
+      {issue && <IssueBanner vendorOrderId={order.id} issue={issue} />}
 
       {isRefunded && (
         <div className="mb-6 flex gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
@@ -191,18 +205,7 @@ export default async function OrderPage({ params }: PageProps<"/orders/[id]">) {
               }
             >
               <ShipForm vendorOrderId={order.id} lines={shippableLines} carriers={carriers} />
-              <ProblemForm
-                vendorOrderId={order.id}
-                issue={
-                  openIssue
-                    ? {
-                        reason: issueReasonLabel(openIssue.reason),
-                        note: openIssue.note,
-                        raisedAt: dateFormat.format(openIssue.createdAt),
-                      }
-                    : null
-                }
-              />
+              {issue?.status !== "OPEN" && <ProblemForm vendorOrderId={order.id} />}
             </Card>
           )}
 

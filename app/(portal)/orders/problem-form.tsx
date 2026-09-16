@@ -1,6 +1,6 @@
 "use client";
 
-import { TriangleAlert } from "lucide-react";
+import { MessageSquare, TriangleAlert } from "lucide-react";
 import { useActionState, useState } from "react";
 import { ISSUE_REASONS } from "@/lib/order-issues";
 import { errorClass, inputClass, labelClass, primaryButtonClass, secondaryButtonClass } from "@/lib/ui";
@@ -8,14 +8,19 @@ import { reportProblem, withdrawProblem, type IssueFormState } from "./actions";
 
 const initialState: IssueFormState = {};
 
-export type OpenIssue = { reason: string; note: string | null; raisedAt: string };
+export type OrderIssue = {
+  status: string;
+  reason: string;
+  note: string | null;
+  raisedAt: string;
+  reviewNote: string | null;
+  closedAt: string | null;
+};
 
-export function ProblemForm({ vendorOrderId, issue }: { vendorOrderId: string; issue: OpenIssue | null }) {
+export function ProblemForm({ vendorOrderId }: { vendorOrderId: string }) {
   const [state, formAction, pending] = useActionState(reportProblem.bind(null, vendorOrderId), initialState);
   const [open, setOpen] = useState(false);
   const errors = state.errors ?? {};
-
-  if (issue) return <RaisedIssue vendorOrderId={vendorOrderId} issue={issue} />;
 
   if (!open) {
     return (
@@ -73,27 +78,53 @@ export function ProblemForm({ vendorOrderId, issue }: { vendorOrderId: string; i
   );
 }
 
-function RaisedIssue({ vendorOrderId, issue }: { vendorOrderId: string; issue: OpenIssue }) {
+// Stays on the order after the store closes it, so the vendor can see what was done.
+export function IssueBanner({ vendorOrderId, issue }: { vendorOrderId: string; issue: OrderIssue }) {
   const [state, formAction, pending] = useActionState(
     async () => withdrawProblem(vendorOrderId),
     initialState,
   );
 
+  if (issue.status === "RESOLVED") {
+    return (
+      <div className="mb-6 flex gap-3 rounded-xl border border-primary-100 bg-primary-50 px-4 py-3 text-sm text-primary-700">
+        <MessageSquare className="mt-0.5 size-4 shrink-0" />
+        <div>
+          <p className="font-semibold">The store dealt with this</p>
+          <p className="mt-1">
+            {issue.reviewNote || "They've handled it with the customer. Nothing more for you to do."}
+          </p>
+          <p className="mt-1 text-primary-600">
+            {[
+              `You told them: ${[issue.reason, issue.note].filter(Boolean).join(" — ")}`,
+              issue.closedAt ? `Closed ${issue.closedAt}` : null,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-      <p className="font-semibold">You told the store you can&apos;t ship this</p>
-      <p className="mt-1">{[issue.reason, issue.note].filter(Boolean).join(" — ")}</p>
-      <p className="mt-1 text-amber-700">{`Sent ${issue.raisedAt}. They'll cancel or refund it and let you know.`}</p>
-      {state.errors?.form && <p className="mt-2 text-red-800">{state.errors.form}</p>}
-      <form action={formAction}>
-        <button
-          type="submit"
-          disabled={pending}
-          className="mt-2 text-sm font-semibold text-amber-900 underline underline-offset-4 disabled:opacity-50"
-        >
-          {pending ? "Withdrawing…" : "Never mind, I can ship it"}
-        </button>
-      </form>
+    <div className="mb-6 flex gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+      <TriangleAlert className="mt-0.5 size-4 shrink-0" />
+      <div>
+        <p className="font-semibold">You told the store you can&apos;t ship this</p>
+        <p className="mt-1">{[issue.reason, issue.note].filter(Boolean).join(" — ")}</p>
+        <p className="mt-1 text-amber-700">{`Sent ${issue.raisedAt}. They'll cancel or refund it and let you know.`}</p>
+        {state.errors?.form && <p className="mt-2 text-red-800">{state.errors.form}</p>}
+        <form action={formAction}>
+          <button
+            type="submit"
+            disabled={pending}
+            className="mt-2 text-sm font-semibold text-amber-900 underline underline-offset-4 disabled:opacity-50"
+          >
+            {pending ? "Withdrawing…" : "Never mind, I can ship it"}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }
