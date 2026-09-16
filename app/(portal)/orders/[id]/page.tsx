@@ -54,7 +54,9 @@ export default async function OrderPage({ params }: PageProps<"/orders/[id]">) {
         where: { id: order.id, vendorId: user.vendorId, vendorSeenAt: null },
         data: { vendorSeenAt: new Date() },
       });
-      revalidatePath("/orders");
+      // The count lives in the sidebar, so the whole layout has to be refreshed, not
+      // just this page.
+      revalidatePath("/", "layout");
     });
   }
 

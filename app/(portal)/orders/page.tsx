@@ -22,13 +22,17 @@ export default async function OrdersPage({ searchParams }: PageProps<"/orders">)
   const [orders, grouped] = await Promise.all([
     db.vendorOrder.findMany({
       where: { vendorId: user.vendorId, ...(status ? { status } : {}) },
-      // Orders the vendor hasn't opened sit at the top, newest first within each group.
-      orderBy: [{ vendorSeenAt: { sort: "asc", nulls: "first" } }, { placedAt: "desc" }],
+      orderBy: { placedAt: "desc" },
       take: 100,
       include: { _count: { select: { VendorOrderLine: true } } },
     }),
     db.vendorOrder.groupBy({ by: ["status"], where: { vendorId: user.vendorId }, _count: { _all: true } }),
   ]);
+
+  // Orders the vendor hasn't opened sit at the top; everything else stays newest first.
+  const isNewOrder = (order: (typeof orders)[number]) =>
+    !order.vendorSeenAt && ["OPEN", "PARTIAL"].includes(order.status);
+  orders.sort((a, b) => Number(isNewOrder(b)) - Number(isNewOrder(a)));
 
   const counts = Object.fromEntries(grouped.map((row) => [row.status, row._count._all]));
   const total = grouped.reduce((sum, row) => sum + row._count._all, 0);
@@ -91,7 +95,7 @@ export default async function OrdersPage({ searchParams }: PageProps<"/orders">)
               </thead>
               <tbody>
                 {orders.map((order) => {
-                  const isNew = !order.vendorSeenAt && ["OPEN", "PARTIAL"].includes(order.status);
+                  const isNew = isNewOrder(order);
                   return (
                   <tr
                     key={order.id}
