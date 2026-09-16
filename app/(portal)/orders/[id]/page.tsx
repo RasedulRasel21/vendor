@@ -1,7 +1,9 @@
 import { CircleCheck, Printer, RotateCcw, Truck } from "lucide-react";
 import type { Metadata } from "next";
+import { revalidatePath } from "next/cache";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { after } from "next/server";
 import { Card } from "@/components/editor/card";
 import { OrderStatusBadge } from "@/components/portal/order-status-badge";
 import { PageHeader } from "@/components/portal/page-header";
@@ -43,6 +45,18 @@ export default async function OrderPage({ params }: PageProps<"/orders/[id]">) {
     },
   });
   if (!order) notFound();
+
+  // Opening an order counts as seeing it, which clears it from the new orders count.
+  // Done after the page is sent, so it never slows the page down.
+  if (!order.vendorSeenAt) {
+    after(async () => {
+      await db.vendorOrder.updateMany({
+        where: { id: order.id, vendorId: user.vendorId, vendorSeenAt: null },
+        data: { vendorSeenAt: new Date() },
+      });
+      revalidatePath("/orders");
+    });
+  }
 
   const currency = order.currencyCode;
   const storeShips = order.shippingMode === "STORE_SHIPS";

@@ -4,11 +4,11 @@ import { requireVendorUser } from "@/lib/session";
 
 export default async function PortalLayout({ children }: { children: React.ReactNode }) {
   const user = await requireVendorUser();
-  const [productsNeedingChanges, openOrders] = await Promise.all([
+  const [productsNeedingChanges, newOrders] = await Promise.all([
     db.productSubmission.count({ where: { vendorId: user.vendorId, status: "REJECTED" } }),
-    // Every open order counts here, so vendors notice orders the store ships too.
+    // Orders the vendor hasn't opened yet, whoever ships them: the count drops as they read.
     db.vendorOrder.count({
-      where: { vendorId: user.vendorId, status: { in: ["OPEN", "PARTIAL"] } },
+      where: { vendorId: user.vendorId, status: { in: ["OPEN", "PARTIAL"] }, vendorSeenAt: null },
     }),
   ]);
 
@@ -18,7 +18,7 @@ export default async function PortalLayout({ children }: { children: React.React
       userName={user.name ?? user.email}
       userEmail={user.email}
       productsNeedingChanges={productsNeedingChanges}
-      openOrders={openOrders}
+      newOrders={newOrders}
     >
       {children}
     </PortalShell>

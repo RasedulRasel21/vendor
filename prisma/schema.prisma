@@ -232,6 +232,7 @@ model VendorOrder {
   refunded           Decimal           @default(0) @db.Decimal(12, 2)
   refundedCommission Decimal           @default(0) @db.Decimal(12, 2)
   refundedEarnings   Decimal           @default(0) @db.Decimal(12, 2)
+  vendorSeenAt       DateTime?
   Vendor             Vendor            @relation(fields: [vendorId], references: [id], onDelete: Cascade)
   VendorOrderLine    VendorOrderLine[]
   VendorShipment     VendorShipment[]

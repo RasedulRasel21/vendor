@@ -101,6 +101,11 @@ export default async function OrdersPage({ searchParams }: PageProps<"/orders">)
                     </td>
                     <td className="px-3 py-3">
                       <div className="flex flex-wrap items-center gap-1.5">
+                        {!order.vendorSeenAt && ["OPEN", "PARTIAL"].includes(order.status) && (
+                          <span className="inline-flex items-center rounded-full bg-primary-600 px-2.5 py-0.5 text-xs font-semibold text-white">
+                            New
+                          </span>
+                        )}
                         <OrderStatusBadge status={order.status} />
                         {Number(order.refunded) > 0 && (
                           <span className="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-800">
