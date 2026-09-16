@@ -335,4 +335,5 @@ enum VendorOrderStatus {
   FULFILLED
   CANCELLED
   PARTIAL
+  REFUNDED
 }
