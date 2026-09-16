@@ -27,9 +27,9 @@ export type SlipData = {
   phone: string | null;
   carrier: string | null;
   trackingNumber: string | null;
-  itemsTotal: string;
-  shipping: string;
-  earnings: string;
+  // What the customer paid for the items in this parcel. The vendor's earnings and the
+  // store's commission never appear here: the customer opens this.
+  parcelTotal: string;
   lines: SlipLine[];
   qrSvg: string;
 };
@@ -55,10 +55,6 @@ type OrderForSlip = {
   customerEmail: string | null;
   customerPhone: string | null;
   shippingAddress: unknown;
-  subtotal: { toFixed: (digits: number) => string };
-  shipping: { toFixed: (digits: number) => string };
-  earnings: { toFixed: (digits: number) => string };
-  refundedEarnings: { toFixed: (digits: number) => string };
   VendorOrderLine: {
     id: string;
     title: string;
@@ -79,6 +75,25 @@ export async function buildSlip(order: OrderForSlip, vendorName: string): Promis
   const address = (order.shippingAddress ?? null) as Address | null;
   const latestShipment = order.VendorShipment[0] ?? null;
 
+  const lines: SlipLine[] = order.VendorOrderLine.map((line) => {
+    const toSend = Math.max(0, line.quantity - line.refundedQuantity - line.shippedQuantity);
+    const unitPrice = Number(line.unitPrice.toFixed(2));
+    return {
+      id: line.id,
+      title: line.title,
+      variantTitle: line.variantTitle,
+      sku: line.sku,
+      imageUrl: line.imageUrl,
+      ordered: line.quantity,
+      shipped: line.shippedQuantity,
+      refunded: line.refundedQuantity,
+      toSend,
+      unitPrice: unitPrice.toFixed(2),
+      // Only what's in this parcel, so a part shipment doesn't show the whole order's money.
+      total: (unitPrice * toSend).toFixed(2),
+    };
+  });
+
   return {
     id: order.id,
     orderName: order.orderName,
@@ -92,22 +107,8 @@ export async function buildSlip(order: OrderForSlip, vendorName: string): Promis
     phone: address?.phone ?? order.customerPhone,
     carrier: latestShipment?.trackingCompany ?? null,
     trackingNumber: latestShipment?.trackingNumber ?? null,
-    itemsTotal: order.subtotal.toFixed(2),
-    shipping: order.shipping.toFixed(2),
-    earnings: (Number(order.earnings.toFixed(2)) - Number(order.refundedEarnings.toFixed(2))).toFixed(2),
-    lines: order.VendorOrderLine.map((line) => ({
-      id: line.id,
-      title: line.title,
-      variantTitle: line.variantTitle,
-      sku: line.sku,
-      imageUrl: line.imageUrl,
-      ordered: line.quantity,
-      shipped: line.shippedQuantity,
-      refunded: line.refundedQuantity,
-      toSend: Math.max(0, line.quantity - line.refundedQuantity - line.shippedQuantity),
-      unitPrice: line.unitPrice.toFixed(2),
-      total: line.subtotal.toFixed(2),
-    })),
+    parcelTotal: lines.reduce((sum, line) => sum + Number(line.total), 0).toFixed(2),
+    lines,
     qrSvg: await orderQrSvg(order.orderName),
   };
 }

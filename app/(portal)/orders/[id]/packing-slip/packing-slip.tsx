@@ -13,7 +13,7 @@ type Options = {
 };
 
 const CONTENT_OPTIONS: { key: keyof Options; label: string; help: string }[] = [
-  { key: "prices", label: "Prices and total", help: "Leave off for a gift" },
+  { key: "prices", label: "Prices", help: "What the customer paid. Leave off for a gift" },
   { key: "skus", label: "SKU column and QR code", help: "Useful for scanning" },
   { key: "returnNote", label: "Return instructions", help: "Printed at the bottom" },
 ];
@@ -85,23 +85,25 @@ export function PackingSlipSheet({
         </div>
 
         <div>
-          <h2 className="mb-1 text-xs font-semibold uppercase tracking-wide text-zinc-500">Customer</h2>
+          <h2 className="mb-1 text-xs font-semibold uppercase tracking-wide text-zinc-500">Order</h2>
           <p className="leading-6 text-zinc-800">
-            {slip.customerName ?? "Customer"}
-            {slip.customerEmail && <span className="block text-zinc-600">{slip.customerEmail}</span>}
+            {slip.orderName}
+            <span className="block text-zinc-600">{dateFormat.format(slip.placedAt)}</span>
           </p>
         </div>
 
-        <div>
-          <h2 className="mb-1 text-xs font-semibold uppercase tracking-wide text-zinc-500">Delivery</h2>
-          <p className="flex items-center gap-1.5 font-medium text-zinc-900">
-            <Truck className="size-4 text-primary-600" />
-            {slip.carrier ?? "Courier of your choice"}
-          </p>
-          {slip.trackingNumber && (
-            <p className="tabular-nums text-zinc-600">{`Tracking ${slip.trackingNumber}`}</p>
-          )}
-        </div>
+        {(slip.carrier || slip.trackingNumber) && (
+          <div>
+            <h2 className="mb-1 text-xs font-semibold uppercase tracking-wide text-zinc-500">Delivery</h2>
+            <p className="flex items-center gap-1.5 font-medium text-zinc-900">
+              <Truck className="size-4 text-primary-600" />
+              {slip.carrier ?? "On its way"}
+            </p>
+            {slip.trackingNumber && (
+              <p className="tabular-nums text-zinc-600">{`Tracking ${slip.trackingNumber}`}</p>
+            )}
+          </div>
+        )}
       </section>
 
       <table className="w-full border-collapse text-left">
@@ -111,7 +113,7 @@ export function PackingSlipSheet({
             {options.skus && <th className="py-2 font-semibold">SKU</th>}
             <th className="py-2 text-center font-semibold">Ordered</th>
             <th className="py-2 text-center font-semibold">In this parcel</th>
-            {options.prices && <th className="py-2 text-right font-semibold">Total</th>}
+            {options.prices && <th className="py-2 text-right font-semibold">Price</th>}
           </tr>
         </thead>
         <tbody>
@@ -149,21 +151,14 @@ export function PackingSlipSheet({
         )}
 
         {options.prices && (
-          <dl className="w-full max-w-64 space-y-1.5 rounded-lg bg-zinc-50 p-4">
-            <div className="flex justify-between gap-4">
-              <dt className="text-zinc-500">Items</dt>
-              <dd className="tabular-nums text-zinc-900">{formatMoney(slip.itemsTotal, currency)}</dd>
+          <dl className="w-full max-w-72 space-y-1.5 rounded-lg bg-zinc-50 p-4">
+            <div className="flex justify-between gap-4 font-semibold">
+              <dt className="text-zinc-900">Items in this parcel</dt>
+              <dd className="tabular-nums text-zinc-900">{formatMoney(slip.parcelTotal, currency)}</dd>
             </div>
-            {Number(slip.shipping) > 0 && (
-              <div className="flex justify-between gap-4">
-                <dt className="text-zinc-500">Shipping</dt>
-                <dd className="tabular-nums text-zinc-900">{formatMoney(slip.shipping, currency)}</dd>
-              </div>
-            )}
-            <div className="flex justify-between gap-4 border-t border-zinc-200 pt-1.5 font-semibold">
-              <dt className="text-zinc-900">You earn</dt>
-              <dd className="tabular-nums text-zinc-900">{formatMoney(slip.earnings, currency)}</dd>
-            </div>
+            <p className="text-xs text-zinc-500">
+              Shipping and tax are on your receipt from {slip.shopName}.
+            </p>
           </dl>
         )}
       </section>
