@@ -8,6 +8,7 @@ import { Card } from "@/components/editor/card";
 import { OrderStatusBadge } from "@/components/portal/order-status-badge";
 import { PageHeader } from "@/components/portal/page-header";
 import { ProductThumb } from "@/components/portal/product-thumb";
+import { carrierOptions } from "@/lib/carriers";
 import { db } from "@/lib/db";
 import { formatMoney } from "@/lib/money";
 import { requireVendorUser } from "@/lib/session";
@@ -76,6 +77,7 @@ export default async function OrderPage({ params }: PageProps<"/orders/[id]">) {
   })).filter((line) => line.remaining > 0);
 
   const canShip = !storeShips && ["OPEN", "PARTIAL"].includes(order.status) && shippableLines.length > 0;
+  const carriers = canShip ? await carrierOptions(user.Vendor.shop, user.vendorId) : null;
 
   const address = storeShips ? null : ((order.shippingAddress ?? null) as Address | null);
   const addressLines = address
@@ -161,7 +163,7 @@ export default async function OrderPage({ params }: PageProps<"/orders/[id]">) {
             </ul>
           </Card>
 
-          {canShip && (
+          {canShip && carriers && (
             <Card
               title={
                 nothingToPost
@@ -180,7 +182,7 @@ export default async function OrderPage({ params }: PageProps<"/orders/[id]">) {
                       }`
               }
             >
-              <ShipForm vendorOrderId={order.id} lines={shippableLines} />
+              <ShipForm vendorOrderId={order.id} lines={shippableLines} carriers={carriers} />
             </Card>
           )}
 

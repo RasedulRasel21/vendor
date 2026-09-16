@@ -1,5 +1,6 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireVendorUser } from "@/lib/session";
@@ -10,7 +11,75 @@ export type ShipFormState = {
   errors?: Record<string, string>;
 };
 
+export type CarrierRequestState = {
+  ok?: boolean;
+  errors?: Record<string, string>;
+};
+
 const field = (formData: FormData, name: string) => String(formData.get(name) ?? "").trim();
+
+// Shopify lists no couriers for some countries, so vendors ask the store to add theirs.
+export async function requestCarrier(
+  _previousState: CarrierRequestState,
+  formData: FormData,
+): Promise<CarrierRequestState> {
+  const user = await requireVendorUser();
+
+  const name = field(formData, "name").slice(0, 60);
+  const trackingUrlTemplate = field(formData, "trackingUrlTemplate").slice(0, 500);
+  const reason = field(formData, "reason").slice(0, 500);
+
+  const errors: Record<string, string> = {};
+  if (name.length < 2) errors.name = "Enter the courier's name";
+  if (reason.length < 5) errors.reason = "Tell the store why you need this courier";
+  if (trackingUrlTemplate) {
+    try {
+      if (new URL(trackingUrlTemplate.replace("{tracking_number}", "123")).protocol !== "https:") {
+        errors.trackingUrlTemplate = "Use a link starting with https://";
+      }
+    } catch {
+      errors.trackingUrlTemplate = "Use a link starting with https://";
+    }
+  }
+  if (Object.keys(errors).length) return { errors };
+
+  const existing = await db.shopCarrier.findFirst({
+    where: { shop: user.Vendor.shop, name: { equals: name, mode: "insensitive" } },
+    select: { status: true },
+  });
+  if (existing?.status === "APPROVED") return { errors: { name: "That courier is already on the list." } };
+  if (existing?.status === "PENDING") return { errors: { name: "The store is already looking at that one." } };
+
+  const now = new Date();
+  await db.$transaction([
+    db.shopCarrier.upsert({
+      where: { shop_name: { shop: user.Vendor.shop, name } },
+      update: { status: "PENDING", trackingUrlTemplate: trackingUrlTemplate || null, reason, reviewNote: null, updatedAt: now },
+      create: {
+        id: randomUUID(),
+        shop: user.Vendor.shop,
+        name,
+        trackingUrlTemplate: trackingUrlTemplate || null,
+        reason,
+        requestedByVendorId: user.vendorId,
+        updatedAt: now,
+      },
+    }),
+    db.vendorActivity.create({
+      data: {
+        id: randomUUID(),
+        vendorId: user.vendorId,
+        action: "carrier.requested",
+        actor: `vendor_user:${user.id}`,
+        details: { name, reason },
+      },
+    }),
+  ]);
+
+  // Every order page shows the courier list, so refresh the whole section.
+  revalidatePath("/orders", "layout");
+  return { ok: true };
+}
 
 // Marks the vendor's lines shipped. The app does the Shopify part and emails the customer.
 export async function markShipped(

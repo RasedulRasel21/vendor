@@ -38,6 +38,7 @@ model ShopSettings {
   currencyCode            String?
   collectionsSyncedAt     DateTime?
   codRulesCustomizationId String?
+  countryCode             String?
 }
 
 model Vendor {
@@ -291,6 +292,23 @@ model VendorShipment {
   @@index([vendorOrderId])
 }
 
+model ShopCarrier {
+  id                  String        @id
+  shop                String
+  name                String
+  trackingUrlTemplate String?
+  status              CarrierStatus @default(PENDING)
+  reason              String?
+  reviewNote          String?
+  requestedByVendorId String?
+  reviewedAt          DateTime?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime
+
+  @@unique([shop, name])
+  @@index([shop, status])
+}
+
 enum ShippingMode {
   VENDOR_SHIPS
   STORE_SHIPS
@@ -345,4 +363,10 @@ enum VendorOrderStatus {
   CANCELLED
   PARTIAL
   REFUNDED
+}
+
+enum CarrierStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
