@@ -39,6 +39,8 @@ export default async function OrderPage({ params }: PageProps<"/orders/[id]">) {
 
   const currency = order.currencyCode;
   const storeShips = order.shippingMode === "STORE_SHIPS";
+  const isRefunded = Number(order.refunded) > 0;
+  const payable = Number(order.earnings) - Number(order.refundedEarnings);
   // The buyer's address is only shown to the vendor who actually posts the parcel.
   const address = storeShips ? null : ((order.shippingAddress ?? null) as Address | null);
   const addressLines = address
@@ -149,12 +151,24 @@ export default async function OrderPage({ params }: PageProps<"/orders/[id]">) {
                   <dd className="tabular-nums text-zinc-900">{formatMoney(order.shipping.toFixed(2), currency)}</dd>
                 </div>
               )}
+              {isRefunded && (
+                <div className="flex justify-between gap-4">
+                  <dt className="text-zinc-500">Refunded to customer</dt>
+                  <dd className="tabular-nums text-zinc-900">
+                    {`− ${formatMoney(order.refundedEarnings.toFixed(2), currency)}`}
+                  </dd>
+                </div>
+              )}
               <div className="flex justify-between gap-4 border-t border-zinc-100 pt-2 font-semibold">
                 <dt className="text-zinc-900">You earn</dt>
-                <dd className="tabular-nums text-zinc-900">{formatMoney(order.earnings.toFixed(2), currency)}</dd>
+                <dd className="tabular-nums text-zinc-900">{formatMoney(payable.toFixed(2), currency)}</dd>
               </div>
             </dl>
-            <p className="mt-3 text-sm text-zinc-500">Paid out by the store after their payout schedule.</p>
+            <p className="mt-3 text-sm text-zinc-500">
+              {isRefunded
+                ? "Refunded items are taken off your earnings, and the store's commission on them comes off too."
+                : "Paid out by the store after their payout schedule."}
+            </p>
           </Card>
         </div>
       </div>
