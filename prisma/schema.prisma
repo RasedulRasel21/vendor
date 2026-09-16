@@ -234,6 +234,7 @@ model VendorOrder {
   refundedEarnings   Decimal           @default(0) @db.Decimal(12, 2)
   Vendor             Vendor            @relation(fields: [vendorId], references: [id], onDelete: Cascade)
   VendorOrderLine    VendorOrderLine[]
+  VendorShipment     VendorShipment[]
 
   @@unique([shop, orderId, vendorId])
   @@index([shop, status])
@@ -258,8 +259,25 @@ model VendorOrderLine {
   fulfillableQuantity        Int         @default(0)
   refundedQuantity           Int         @default(0)
   refundedSubtotal           Decimal     @default(0) @db.Decimal(12, 2)
+  shippedQuantity            Int         @default(0)
   VendorOrder                VendorOrder @relation(fields: [vendorOrderId], references: [id], onDelete: Cascade)
 
+  @@index([vendorOrderId])
+}
+
+model VendorShipment {
+  id              String      @id
+  vendorOrderId   String
+  fulfillmentId   String?
+  trackingCompany String?
+  trackingNumber  String?
+  trackingUrl     String?
+  items           Json
+  shippedBy       String
+  createdAt       DateTime    @default(now())
+  VendorOrder     VendorOrder @relation(fields: [vendorOrderId], references: [id], onDelete: Cascade)
+
+  @@index([fulfillmentId])
   @@index([vendorOrderId])
 }
 
@@ -315,4 +333,5 @@ enum VendorOrderStatus {
   OPEN
   FULFILLED
   CANCELLED
+  PARTIAL
 }

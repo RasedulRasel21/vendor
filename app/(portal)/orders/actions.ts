@@ -22,10 +22,22 @@ export async function markShipped(
 
   const order = await db.vendorOrder.findFirst({
     where: { id: vendorOrderId, vendorId: user.vendorId },
-    select: { id: true, status: true },
+    select: { id: true, status: true, VendorOrderLine: { select: { id: true } } },
   });
   if (!order) return { errors: { form: "This order wasn't found." } };
-  if (order.status !== "OPEN") return { errors: { form: "This order is already shipped or cancelled." } };
+  if (!["OPEN", "PARTIAL"].includes(order.status)) {
+    return { errors: { form: "This order is already shipped or cancelled." } };
+  }
+
+  // Quantities per line, when the vendor sends part of the order.
+  const items = order.VendorOrderLine.map((line) => {
+    const value = formData.get(`qty:${line.id}`);
+    return { lineId: line.id, quantity: value === null ? 0 : Math.trunc(Number(value)) };
+  }).filter((item) => Number.isFinite(item.quantity) && item.quantity > 0);
+
+  if (formData.has(`qty:${order.VendorOrderLine[0]?.id}`) && !items.length) {
+    return { errors: { form: "Choose at least one item to ship." } };
+  }
 
   const trackingNumber = field(formData, "trackingNumber");
   const trackingCompany = field(formData, "trackingCompany");
@@ -49,6 +61,7 @@ export async function markShipped(
     trackingNumber,
     trackingCompany,
     trackingUrl,
+    items,
   });
   if ("error" in result) return { errors: { form: result.error } };
 

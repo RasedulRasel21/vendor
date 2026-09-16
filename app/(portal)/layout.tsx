@@ -7,7 +7,9 @@ export default async function PortalLayout({ children }: { children: React.React
   const [productsNeedingChanges, openOrders] = await Promise.all([
     db.productSubmission.count({ where: { vendorId: user.vendorId, status: "REJECTED" } }),
     // Every open order counts here, so vendors notice orders the store ships too.
-    db.vendorOrder.count({ where: { vendorId: user.vendorId, status: "OPEN" } }),
+    db.vendorOrder.count({
+      where: { vendorId: user.vendorId, status: { in: ["OPEN", "PARTIAL"] } },
+    }),
   ]);
 
   return (

@@ -9,25 +9,67 @@ const initialState: ShipFormState = {};
 // Common couriers in Bangladesh, plus the international ones Shopify links tracking for.
 const CARRIERS = ["Pathao", "Steadfast", "RedX", "Sundarban", "Paperfly", "DHL", "FedEx", "UPS", "Other"];
 
-export function ShipForm({ vendorOrderId }: { vendorOrderId: string }) {
-  const [state, formAction, pending] = useActionState(markShipped.bind(null, vendorOrderId), initialState);
-  const [confirming, setConfirming] = useState(false);
-  const errors = state.errors ?? {};
+export type ShippableLine = {
+  id: string;
+  title: string;
+  variantTitle: string | null;
+  remaining: number;
+};
 
-  if (!confirming) {
+export function ShipForm({ vendorOrderId, lines }: { vendorOrderId: string; lines: ShippableLine[] }) {
+  const [state, formAction, pending] = useActionState(markShipped.bind(null, vendorOrderId), initialState);
+  const [open, setOpen] = useState(false);
+  const errors = state.errors ?? {};
+  const severalItems = lines.length > 1 || lines.some((line) => line.remaining > 1);
+
+  if (!open) {
     return (
-      <button type="button" onClick={() => setConfirming(true)} className={primaryButtonClass}>
+      <button type="button" onClick={() => setOpen(true)} className={primaryButtonClass}>
         Mark as shipped
       </button>
     );
   }
 
   return (
-    <form action={formAction} className="space-y-4">
+    <form action={formAction} className="space-y-5">
       {errors.form && (
         <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-800">
           {errors.form}
         </p>
+      )}
+
+      {severalItems && (
+        <fieldset>
+          <legend className={labelClass}>What&apos;s in this parcel?</legend>
+          <ul className="divide-y divide-zinc-100 rounded-lg border border-zinc-200">
+            {lines.map((line) => (
+              <li key={line.id} className="flex items-center gap-3 px-3 py-2.5">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-zinc-900">{line.title}</p>
+                  <p className="text-xs text-zinc-500">
+                    {[line.variantTitle, `${line.remaining} left to send`].filter(Boolean).join(" · ")}
+                  </p>
+                </div>
+                <label htmlFor={`qty-${line.id}`} className="sr-only">
+                  {`Quantity of ${line.title} in this parcel`}
+                </label>
+                <input
+                  id={`qty-${line.id}`}
+                  name={`qty:${line.id}`}
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  max={line.remaining}
+                  defaultValue={line.remaining}
+                  className={`${inputClass} w-20 text-center`}
+                />
+              </li>
+            ))}
+          </ul>
+          <p className="mt-1.5 text-sm text-zinc-500">
+            Send part of the order now and the rest later; each parcel gets its own tracking.
+          </p>
+        </fieldset>
       )}
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -90,7 +132,7 @@ export function ShipForm({ vendorOrderId }: { vendorOrderId: string }) {
         <button type="submit" disabled={pending} className={primaryButtonClass}>
           {pending ? "Marking shipped…" : "Mark as shipped"}
         </button>
-        <button type="button" onClick={() => setConfirming(false)} disabled={pending} className={secondaryButtonClass}>
+        <button type="button" onClick={() => setOpen(false)} disabled={pending} className={secondaryButtonClass}>
           Cancel
         </button>
       </div>

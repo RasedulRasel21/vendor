@@ -49,8 +49,12 @@ export default async function DashboardPage() {
   ]);
 
   const [ordersToShip, ordersStoreShips] = await Promise.all([
-    db.vendorOrder.count({ where: { vendorId: vendor.id, status: "OPEN", shippingMode: "VENDOR_SHIPS" } }),
-    db.vendorOrder.count({ where: { vendorId: vendor.id, status: "OPEN", shippingMode: "STORE_SHIPS" } }),
+    db.vendorOrder.count({
+      where: { vendorId: vendor.id, status: { in: ["OPEN", "PARTIAL"] }, shippingMode: "VENDOR_SHIPS" },
+    }),
+    db.vendorOrder.count({
+      where: { vendorId: vendor.id, status: { in: ["OPEN", "PARTIAL"] }, shippingMode: "STORE_SHIPS" },
+    }),
   ]);
 
   const count = (status: string) => grouped.find((row) => row.status === status)?._count._all ?? 0;

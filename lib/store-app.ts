@@ -7,6 +7,8 @@ export async function requestFulfillment(input: {
   trackingNumber: string;
   trackingCompany: string;
   trackingUrl: string;
+  // Empty means everything still to send.
+  items: { lineId: string; quantity: number }[];
 }): Promise<{ ok: true } | { error: string }> {
   const appUrl = process.env.STORE_APP_URL;
   const secret = process.env.PORTAL_SYNC_SECRET;

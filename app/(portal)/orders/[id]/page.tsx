@@ -1,4 +1,4 @@
-import { CircleCheck } from "lucide-react";
+import { CircleCheck, Truck } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Card } from "@/components/editor/card";
@@ -8,7 +8,7 @@ import { ProductThumb } from "@/components/portal/product-thumb";
 import { db } from "@/lib/db";
 import { formatMoney } from "@/lib/money";
 import { requireVendorUser } from "@/lib/session";
-import { ShipForm } from "../ship-form";
+import { ShipForm, type ShippableLine } from "../ship-form";
 
 export const metadata: Metadata = {
   title: "Order · StoreVendor",
@@ -27,13 +27,18 @@ type Address = {
   phone?: string | null;
 };
 
+type ShipmentItem = { lineId: string; title: string; quantity: number };
+
 export default async function OrderPage({ params }: PageProps<"/orders/[id]">) {
   const user = await requireVendorUser();
   const { id } = await params;
 
   const order = await db.vendorOrder.findFirst({
     where: { id, vendorId: user.vendorId },
-    include: { VendorOrderLine: { orderBy: { title: "asc" } } },
+    include: {
+      VendorOrderLine: { orderBy: { title: "asc" } },
+      VendorShipment: { orderBy: { createdAt: "desc" } },
+    },
   });
   if (!order) notFound();
 
@@ -41,7 +46,17 @@ export default async function OrderPage({ params }: PageProps<"/orders/[id]">) {
   const storeShips = order.shippingMode === "STORE_SHIPS";
   const isRefunded = Number(order.refunded) > 0;
   const payable = Number(order.earnings) - Number(order.refundedEarnings);
-  // The buyer's address is only shown to the vendor who actually posts the parcel.
+
+  // Refunded items don't need sending, and neither do items already in a parcel.
+  const shippableLines: ShippableLine[] = order.VendorOrderLine.map((line) => ({
+    id: line.id,
+    title: line.title,
+    variantTitle: line.variantTitle,
+    remaining: Math.max(0, line.quantity - line.refundedQuantity - line.shippedQuantity),
+  })).filter((line) => line.remaining > 0);
+
+  const canShip = !storeShips && ["OPEN", "PARTIAL"].includes(order.status) && shippableLines.length > 0;
+
   const address = storeShips ? null : ((order.shippingAddress ?? null) as Address | null);
   const addressLines = address
     ? [
@@ -66,8 +81,8 @@ export default async function OrderPage({ params }: PageProps<"/orders/[id]">) {
         <p className="mb-6 flex items-center gap-2 rounded-xl border border-primary-100 bg-primary-50 px-4 py-3 text-sm text-primary-700">
           <CircleCheck className="size-4 shrink-0" />
           {order.fulfilledAt
-            ? `Marked shipped on ${dateFormat.format(order.fulfilledAt)}. The customer has been emailed.`
-            : "Shipped. The customer has been emailed."}
+            ? `Everything was sent on ${dateFormat.format(order.fulfilledAt)}. The customer has been emailed.`
+            : "Everything was sent. The customer has been emailed."}
         </p>
       )}
 
@@ -75,38 +90,92 @@ export default async function OrderPage({ params }: PageProps<"/orders/[id]">) {
         <div className="space-y-6">
           <Card title={storeShips ? "Items in this order" : "Items to ship"}>
             <ul className="divide-y divide-zinc-100">
-              {order.VendorOrderLine.map((line) => (
-                <li key={line.id} className="flex items-center gap-4 py-3 first:pt-0 last:pb-0">
-                  <ProductThumb src={line.imageUrl} size="sm" />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium text-zinc-900">{line.title}</p>
-                    <p className="text-sm text-zinc-500">
-                      {[line.variantTitle, line.sku ? `SKU ${line.sku}` : null].filter(Boolean).join(" · ") ||
-                        "No variant"}
-                    </p>
-                  </div>
-                  <span className="text-sm tabular-nums text-zinc-600">{`× ${line.quantity}`}</span>
-                  <span className="w-24 text-right text-sm font-medium tabular-nums text-zinc-900">
-                    {formatMoney(line.earnings.toFixed(2), currency)}
-                  </span>
-                </li>
-              ))}
+              {order.VendorOrderLine.map((line) => {
+                const remaining = Math.max(0, line.quantity - line.refundedQuantity - line.shippedQuantity);
+                const notes = [
+                  line.shippedQuantity ? `${line.shippedQuantity} sent` : null,
+                  line.refundedQuantity ? `${line.refundedQuantity} refunded` : null,
+                  !storeShips && remaining && line.shippedQuantity ? `${remaining} left` : null,
+                ].filter(Boolean);
+
+                return (
+                  <li key={line.id} className="flex items-center gap-4 py-3 first:pt-0 last:pb-0">
+                    <ProductThumb src={line.imageUrl} size="sm" />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium text-zinc-900">{line.title}</p>
+                      <p className="text-sm text-zinc-500">
+                        {[line.variantTitle, line.sku ? `SKU ${line.sku}` : null, ...notes]
+                          .filter(Boolean)
+                          .join(" · ") || "No variant"}
+                      </p>
+                    </div>
+                    <span className="text-sm tabular-nums text-zinc-600">{`× ${line.quantity}`}</span>
+                    <span className="w-24 text-right text-sm font-medium tabular-nums text-zinc-900">
+                      {formatMoney(line.earnings.toFixed(2), currency)}
+                    </span>
+                  </li>
+                );
+              })}
             </ul>
           </Card>
 
-          {order.status === "OPEN" &&
-            (storeShips ? (
-              <Card title="The store ships this order">
-                <p className="text-sm text-zinc-600">
-                  You send your stock to the store and they pack and post it. Nothing to do here; your
-                  earnings are counted either way.
-                </p>
-              </Card>
-            ) : (
-              <Card title="Ship this order" description="Add the courier and tracking, then mark it shipped.">
-                <ShipForm vendorOrderId={order.id} />
-              </Card>
-            ))}
+          {canShip && (
+            <Card
+              title={order.status === "PARTIAL" ? "Send the rest" : "Ship this order"}
+              description="Add the courier and tracking, then mark it shipped."
+            >
+              <ShipForm vendorOrderId={order.id} lines={shippableLines} />
+            </Card>
+          )}
+
+          {storeShips && order.status !== "FULFILLED" && (
+            <Card title="The store ships this order">
+              <p className="text-sm text-zinc-600">
+                You send your stock to the store and they pack and post it. Nothing to do here; your
+                earnings are counted either way.
+              </p>
+            </Card>
+          )}
+
+          {order.VendorShipment.length > 0 && (
+            <Card title="Parcels sent">
+              <ul className="divide-y divide-zinc-100">
+                {order.VendorShipment.map((shipment) => {
+                  const items = (shipment.items ?? []) as ShipmentItem[];
+                  const tracking = [shipment.trackingCompany, shipment.trackingNumber].filter(Boolean).join(" · ");
+                  return (
+                    <li key={shipment.id} className="flex items-start gap-3 py-3 first:pt-0 last:pb-0">
+                      <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-primary-50 text-primary-600">
+                        <Truck className="size-4" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-zinc-900">
+                          {items.map((item) => `${item.quantity} × ${item.title}`).join(", ") || "Items sent"}
+                        </p>
+                        <p className="text-sm text-zinc-500">
+                          {[
+                            shipment.shippedBy === "store" ? "Sent by the store" : "Sent by you",
+                            dateFormat.format(shipment.createdAt),
+                            tracking || "No tracking",
+                          ].join(" · ")}
+                        </p>
+                      </div>
+                      {shipment.trackingUrl && (
+                        <a
+                          href={shipment.trackingUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="shrink-0 text-sm font-semibold text-primary-700 underline-offset-4 hover:underline"
+                        >
+                          Track
+                        </a>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </Card>
+          )}
         </div>
 
         <div className="space-y-6">
