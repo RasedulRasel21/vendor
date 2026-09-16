@@ -92,13 +92,16 @@ export function PackingSlipSheet({
           </p>
         </div>
 
-        {(slip.carrier || slip.trackingNumber) && (
+        {(slip.carrier || slip.trackingNumber || slip.shippingMethod || slip.isPickup) && (
           <div>
             <h2 className="mb-1 text-xs font-semibold uppercase tracking-wide text-zinc-500">Delivery</h2>
             <p className="flex items-center gap-1.5 font-medium text-zinc-900">
               <Truck className="size-4 text-primary-600" />
-              {slip.carrier ?? "On its way"}
+              {slip.isPickup ? "Collected from the store" : (slip.carrier ?? slip.shippingMethod ?? "On its way")}
             </p>
+            {slip.carrier && slip.shippingMethod && !slip.isPickup && (
+              <p className="text-zinc-600">{slip.shippingMethod}</p>
+            )}
             {slip.trackingNumber && (
               <p className="tabular-nums text-zinc-600">{`Tracking ${slip.trackingNumber}`}</p>
             )}
@@ -128,6 +131,9 @@ export function PackingSlipSheet({
                 {line.shipped > 0 && line.toSend > 0 && (
                   <span className="block text-zinc-500">{`${line.shipped} already sent`}</span>
                 )}
+                {!line.requiresShipping && (
+                  <span className="block text-zinc-500">Digital, nothing to post</span>
+                )}
               </td>
               {options.skus && <td className="py-3 pr-3 tabular-nums text-zinc-700">{line.sku || "—"}</td>}
               <td className="py-3 text-center tabular-nums text-zinc-700">{line.ordered}</td>
@@ -141,14 +147,17 @@ export function PackingSlipSheet({
       </table>
 
       <section className="flex flex-wrap items-start justify-between gap-6 pt-5">
-        {options.returnNote ? (
-          <p className="max-w-sm leading-relaxed text-zinc-600">
-            Thanks for your order. Something wrong with it? Contact {slip.shopName}, who handles returns and
-            refunds for this purchase.
-          </p>
-        ) : (
-          <span />
-        )}
+        <div className="max-w-sm space-y-2">
+          {options.returnNote && (
+            <p className="leading-relaxed text-zinc-600">
+              Thanks for your order. Something wrong with it? Contact {slip.shopName}, who handles returns and
+              refunds for this purchase.
+            </p>
+          )}
+          {slip.parcelWeight && !slip.nothingToPost && (
+            <p className="text-xs text-zinc-500">{`Contents weigh about ${slip.parcelWeight}`}</p>
+          )}
+        </div>
 
         {options.prices && (
           <dl className="w-full max-w-72 space-y-1.5 rounded-lg bg-zinc-50 p-4">

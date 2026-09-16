@@ -64,6 +64,8 @@ export default async function OrderPage({ params }: PageProps<"/orders/[id]">) {
   const storeShips = order.shippingMode === "STORE_SHIPS";
   const isRefunded = Number(order.refunded) > 0;
   const payable = Number(order.earnings) - Number(order.refundedEarnings);
+  const isPickup = ["PICK_UP", "RETAIL"].includes(order.deliveryMethod ?? "");
+  const nothingToPost = order.VendorOrderLine.every((line) => !line.requiresShipping);
 
   // Refunded items don't need sending, and neither do items already in a parcel.
   const shippableLines: ShippableLine[] = order.VendorOrderLine.map((line) => ({
@@ -161,8 +163,22 @@ export default async function OrderPage({ params }: PageProps<"/orders/[id]">) {
 
           {canShip && (
             <Card
-              title={order.status === "PARTIAL" ? "Send the rest" : "Ship this order"}
-              description="Add the courier and tracking, then mark it shipped."
+              title={
+                nothingToPost
+                  ? "Mark this order done"
+                  : order.status === "PARTIAL"
+                    ? "Send the rest"
+                    : "Ship this order"
+              }
+              description={
+                nothingToPost
+                  ? "Nothing to post here. Mark it done once the customer has what they bought."
+                  : isPickup
+                    ? "Hand the items to the store, then mark them done so the customer is told."
+                    : `Add the courier and tracking, then mark it shipped.${
+                        order.shippingMethod ? ` The customer chose ${order.shippingMethod}.` : ""
+                      }`
+              }
             >
               <ShipForm vendorOrderId={order.id} lines={shippableLines} />
             </Card>
@@ -219,8 +235,13 @@ export default async function OrderPage({ params }: PageProps<"/orders/[id]">) {
         </div>
 
         <div className="space-y-6">
-          <Card title={storeShips ? "Delivery" : "Ship to"}>
-            {storeShips ? (
+          <Card title={storeShips ? "Delivery" : isPickup ? "Collection" : "Ship to"}>
+            {isPickup && !storeShips ? (
+              <p className="text-sm text-zinc-600">
+                The customer collects this order from the store. Hand the items over to the store rather than
+                posting them.
+              </p>
+            ) : storeShips ? (
               <p className="text-sm text-zinc-600">
                 The store handles delivery for this order, so the customer&apos;s address stays with them.
               </p>
@@ -278,6 +299,11 @@ export default async function OrderPage({ params }: PageProps<"/orders/[id]">) {
                 ? "Refunded items are taken off your earnings, and the store's commission on them comes off too."
                 : "Paid out by the store after their payout schedule."}
             </p>
+            {order.presentmentCurrency && order.presentmentSubtotal && (
+              <p className="mt-1 text-sm text-zinc-500">
+                {`The customer paid ${formatMoney(order.presentmentSubtotal.toFixed(2), order.presentmentCurrency)} for these items; you're paid in ${currency}.`}
+              </p>
+            )}
           </Card>
         </div>
       </div>

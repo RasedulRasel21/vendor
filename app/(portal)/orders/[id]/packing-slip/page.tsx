@@ -39,6 +39,7 @@ export default async function PackingSlipPage({ params }: PageProps<"/orders/[id
   // The store packs its own orders, so there's no slip for the vendor to print.
   if (!order || order.shippingMode === "STORE_SHIPS") notFound();
 
+
   const slip = await buildSlip({ ...order, shop: order.shop }, user.Vendor.name);
 
   return (

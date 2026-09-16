@@ -10,8 +10,11 @@ export type SlipLine = {
   shipped: number;
   toSend: number;
   refunded: number;
+  // Prices include tax, so they match the customer's receipt.
   unitPrice: string;
   total: string;
+  requiresShipping: boolean;
+  weight: string | null;
 };
 
 export type SlipData = {
@@ -27,9 +30,15 @@ export type SlipData = {
   phone: string | null;
   carrier: string | null;
   trackingNumber: string | null;
+  // What the customer chose at checkout, like "Standard" or "Express".
+  shippingMethod: string | null;
   // What the customer paid for the items in this parcel. The vendor's earnings and the
   // store's commission never appear here: the customer opens this.
   parcelTotal: string;
+  parcelWeight: string | null;
+  // Digital goods and store pickups aren't posted, so the wording changes.
+  nothingToPost: boolean;
+  isPickup: boolean;
   lines: SlipLine[];
   qrSvg: string;
 };
@@ -55,6 +64,8 @@ type OrderForSlip = {
   customerEmail: string | null;
   customerPhone: string | null;
   shippingAddress: unknown;
+  deliveryMethod: string | null;
+  shippingMethod: string | null;
   VendorOrderLine: {
     id: string;
     title: string;
@@ -66,6 +77,10 @@ type OrderForSlip = {
     refundedQuantity: number;
     unitPrice: { toFixed: (digits: number) => string };
     subtotal: { toFixed: (digits: number) => string };
+    tax: { toFixed: (digits: number) => string };
+    requiresShipping: boolean;
+    weight: { toFixed: (digits: number) => string } | null;
+    weightUnit: string | null;
   }[];
   VendorShipment: { trackingCompany: string | null; trackingNumber: string | null }[];
 };
@@ -77,7 +92,11 @@ export async function buildSlip(order: OrderForSlip, vendorName: string): Promis
 
   const lines: SlipLine[] = order.VendorOrderLine.map((line) => {
     const toSend = Math.max(0, line.quantity - line.refundedQuantity - line.shippedQuantity);
-    const unitPrice = Number(line.unitPrice.toFixed(2));
+    // Tax is added back, so printed prices match what the customer was charged.
+    const paidForLine = Number(line.subtotal.toFixed(2)) + Number(line.tax.toFixed(2));
+    const unitPrice = line.quantity > 0 ? paidForLine / line.quantity : 0;
+    const weight = line.weight ? Number(line.weight.toFixed(3)) : 0;
+
     return {
       id: line.id,
       title: line.title,
@@ -91,8 +110,19 @@ export async function buildSlip(order: OrderForSlip, vendorName: string): Promis
       unitPrice: unitPrice.toFixed(2),
       // Only what's in this parcel, so a part shipment doesn't show the whole order's money.
       total: (unitPrice * toSend).toFixed(2),
+      requiresShipping: line.requiresShipping,
+      weight: weight > 0 ? `${(weight * toSend).toFixed(3).replace(/\.?0+$/, "")} ${(line.weightUnit ?? "kg").toLowerCase()}` : null,
     };
   });
+
+  const postedLines = lines.filter((line) => line.requiresShipping && line.toSend > 0);
+  const parcelWeight = order.VendorOrderLine.reduce((sum, line) => {
+    const toSend = Math.max(0, line.quantity - line.refundedQuantity - line.shippedQuantity);
+    const weight = line.weight ? Number(line.weight.toFixed(3)) : 0;
+    // Only kilograms and grams are added up; mixed units are left out rather than guessed.
+    if (!weight || !["KILOGRAMS", "GRAMS"].includes(line.weightUnit ?? "")) return sum;
+    return sum + (line.weightUnit === "GRAMS" ? weight / 1000 : weight) * toSend;
+  }, 0);
 
   return {
     id: order.id,
@@ -107,7 +137,11 @@ export async function buildSlip(order: OrderForSlip, vendorName: string): Promis
     phone: address?.phone ?? order.customerPhone,
     carrier: latestShipment?.trackingCompany ?? null,
     trackingNumber: latestShipment?.trackingNumber ?? null,
+    shippingMethod: order.shippingMethod,
     parcelTotal: lines.reduce((sum, line) => sum + Number(line.total), 0).toFixed(2),
+    parcelWeight: parcelWeight > 0 ? `${parcelWeight.toFixed(3).replace(/\.?0+$/, "")} kg` : null,
+    nothingToPost: postedLines.length === 0,
+    isPickup: ["PICK_UP", "RETAIL"].includes(order.deliveryMethod ?? ""),
     lines,
     qrSvg: await orderQrSvg(order.orderName),
   };
