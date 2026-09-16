@@ -96,6 +96,14 @@ dialog[open]::backdrop {
   body {
     background: #ffffff;
   }
+  /* One slip per page when several are printed together. */
+  .slip-sheet {
+    break-inside: avoid;
+    break-after: page;
+  }
+  .slip-sheet:last-child {
+    break-after: auto;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

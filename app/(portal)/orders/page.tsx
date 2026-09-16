@@ -1,3 +1,4 @@
+import { Printer } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { OrderStatusBadge } from "@/components/portal/order-status-badge";
@@ -6,6 +7,7 @@ import { db } from "@/lib/db";
 import { formatMoney } from "@/lib/money";
 import { ORDER_STATUS, type OrderStatus } from "@/lib/order-status";
 import { requireVendorUser } from "@/lib/session";
+import { secondaryButtonClass } from "@/lib/ui";
 
 export const metadata: Metadata = {
   title: "Orders · StoreVendor",
@@ -19,7 +21,7 @@ export default async function OrdersPage({ searchParams }: PageProps<"/orders">)
   const status =
     typeof requested === "string" && requested in ORDER_STATUS ? (requested as OrderStatus) : undefined;
 
-  const [orders, grouped] = await Promise.all([
+  const [orders, grouped, toPack] = await Promise.all([
     db.vendorOrder.findMany({
       where: { vendorId: user.vendorId, ...(status ? { status } : {}) },
       orderBy: { placedAt: "desc" },
@@ -27,6 +29,13 @@ export default async function OrdersPage({ searchParams }: PageProps<"/orders">)
       include: { _count: { select: { VendorOrderLine: true } } },
     }),
     db.vendorOrder.groupBy({ by: ["status"], where: { vendorId: user.vendorId }, _count: { _all: true } }),
+    db.vendorOrder.count({
+      where: {
+        vendorId: user.vendorId,
+        status: { in: ["OPEN", "PARTIAL"] },
+        shippingMode: "VENDOR_SHIPS",
+      },
+    }),
   ]);
 
   // Orders the vendor hasn't opened sit at the top; everything else stays newest first.
@@ -48,7 +57,18 @@ export default async function OrdersPage({ searchParams }: PageProps<"/orders">)
 
   return (
     <div>
-      <PageHeader title="Orders" description="Your share of each order, and what you earn from it." />
+      <PageHeader
+        title="Orders"
+        description="Your share of each order, and what you earn from it."
+        actions={
+          toPack > 0 ? (
+            <Link href="/orders/packing-slips" className={secondaryButtonClass}>
+              <Printer className="size-4" />
+              {`Packing slips (${toPack})`}
+            </Link>
+          ) : null
+        }
+      />
 
       <div className="card-surface">
         <nav aria-label="Filter by status" className="flex gap-1 overflow-x-auto border-b border-zinc-200 px-4 py-3">
