@@ -19,3 +19,10 @@ export const RETURN_STATUS: Record<string, { label: string; className: string }>
 };
 
 export const ACTIVE_RETURN_STATUSES = ["REQUESTED", "OPEN"];
+
+// Shopify's reasons for turning a return down, in the customer's words.
+export const DECLINE_REASONS = {
+  FINAL_SALE: "It was a final sale item",
+  RETURN_PERIOD_ENDED: "The return window has closed",
+  OTHER: "Another reason",
+};

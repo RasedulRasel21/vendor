@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { ISSUE_REASONS } from "@/lib/order-issues";
 import { requireVendorUser } from "@/lib/session";
-import { requestFulfillment } from "@/lib/store-app";
+import { requestFulfillment, requestReturnAction } from "@/lib/store-app";
 
 export type ShipFormState = {
   ok?: boolean;
@@ -86,6 +86,60 @@ export type IssueFormState = {
   ok?: boolean;
   errors?: Record<string, string>;
 };
+
+export type ReturnFormState = {
+  ok?: boolean;
+  message?: string;
+  errors?: Record<string, string>;
+};
+
+// Approving, declining and restocking are real changes in Shopify, so they go through the
+// store app. The vendor's ownership of the return is checked on both sides.
+export async function actOnReturn(
+  vendorReturnId: string,
+  _previousState: ReturnFormState,
+  formData: FormData,
+): Promise<ReturnFormState> {
+  const user = await requireVendorUser();
+
+  const intent = field(formData, "intent");
+  if (!["approve", "decline", "restock"].includes(intent)) {
+    return { errors: { form: "That isn't something you can do to a return." } };
+  }
+
+  const vendorReturn = await db.vendorReturn.findFirst({
+    where: { id: vendorReturnId, VendorOrder: { vendorId: user.vendorId } },
+    select: { id: true, status: true, name: true },
+  });
+  if (!vendorReturn) return { errors: { form: "This return wasn't found." } };
+
+  const reason = field(formData, "reason");
+  const note = field(formData, "note").slice(0, 500);
+  if (intent === "decline" && reason === "OTHER" && note.length < 5) {
+    return { errors: { note: "Tell the customer why you're turning it down" } };
+  }
+
+  const result = await requestReturnAction({
+    vendorReturnId: vendorReturn.id,
+    vendorId: user.vendorId,
+    intent: intent as "approve" | "decline" | "restock",
+    reason,
+    note,
+  });
+  if ("error" in result) return { errors: { form: result.error } };
+
+  // Every order page can show a return, so refresh the section rather than one page.
+  revalidatePath("/orders", "layout");
+  return {
+    ok: true,
+    message:
+      intent === "restock"
+        ? `${result.units ?? ""} back in stock${result.location ? ` at ${result.location}` : ""}`.trim()
+        : intent === "approve"
+          ? "Approved. The customer can send it back."
+          : "Turned down. The customer has been told.",
+  };
+}
 
 // Taking an order on is the vendor saying they'll pack it, which is what the store watches
 // for. Opening it isn't the same thing, so it's a deliberate click.

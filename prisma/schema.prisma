@@ -40,6 +40,8 @@ model ShopSettings {
   codRulesCustomizationId String?
   countryCode             String?
   fulfillmentDays         Int       @default(3)
+  restockLocationId       String?
+  restockLocationName     String?
 }
 
 model Vendor {

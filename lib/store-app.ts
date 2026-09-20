@@ -1,4 +1,45 @@
 // Used from server actions only: it carries the shared secret, so it must never reach the browser.
+function bridge() {
+  const appUrl = process.env.STORE_APP_URL;
+  const secret = process.env.PORTAL_SYNC_SECRET;
+  if (!appUrl || !secret) return null;
+  return { appUrl: appUrl.replace(/\/$/, ""), secret };
+}
+
+// Approving, declining and restocking all happen in Shopify, so they go through the app the
+// same way shipping does.
+export async function requestReturnAction(input: {
+  vendorReturnId: string;
+  vendorId: string;
+  intent: "approve" | "decline" | "restock";
+  reason?: string;
+  note?: string;
+}): Promise<{ ok: true; units?: number; location?: string } | { error: string }> {
+  const config = bridge();
+  if (!config) {
+    console.error("STORE_APP_URL or PORTAL_SYNC_SECRET is missing");
+    return { error: "Returns aren't set up yet. Contact the store." };
+  }
+
+  try {
+    const response = await fetch(`${config.appUrl}/api/portal/return`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-storevendor-secret": config.secret },
+      body: JSON.stringify(input),
+      cache: "no-store",
+    });
+    const result = (await response.json().catch(() => null)) as
+      | { ok?: true; units?: number; location?: string; error?: string }
+      | null;
+
+    if (response.ok && result?.ok) return { ok: true, units: result.units, location: result.location };
+    return { error: result?.error ?? "The store couldn't do that. Try again." };
+  } catch (error) {
+    console.error("Return request failed", error);
+    return { error: "The store couldn't be reached. Try again in a moment." };
+  }
+}
+
 // The portal has no Shopify access, so shipping goes through the StoreVendor app,
 // which calls Shopify with the store's own credentials. Both sides share a secret.
 export async function requestFulfillment(input: {

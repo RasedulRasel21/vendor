@@ -18,6 +18,7 @@ import { requireVendorUser } from "@/lib/session";
 import { secondaryButtonClass } from "@/lib/ui";
 import { AcceptForm } from "../accept-form";
 import { IssueBanner, ProblemForm } from "../problem-form";
+import { ReturnActions } from "../return-actions";
 import { ShipForm, type ShippableLine } from "../ship-form";
 
 export const metadata: Metadata = {
@@ -89,14 +90,14 @@ export default async function OrderPage({ params }: PageProps<"/orders/[id]">) {
   const canShip = !storeShips && ["OPEN", "PARTIAL"].includes(order.status) && shippableLines.length > 0;
   const carriers = canShip ? await carrierOptions(user.Vendor.shop, user.vendorId) : null;
 
-  // Only worth showing while something still has to go out.
-  const settings = canShip
-    ? await db.shopSettings.findUnique({
-        where: { shop: user.Vendor.shop },
-        select: { fulfillmentDays: true },
-      })
-    : null;
-  const deadline = settings ? shipDeadline(order.placedAt, settings.fulfillmentDays) : null;
+  const settings = await db.shopSettings.findUnique({
+    where: { shop: user.Vendor.shop },
+    select: { fulfillmentDays: true, restockLocationId: true },
+  });
+  // The deadline is only worth showing while something still has to go out.
+  const deadline = canShip && settings ? shipDeadline(order.placedAt, settings.fulfillmentDays) : null;
+  // Vendors can only put stock back once the store has said where it goes.
+  const canRestock = Boolean(settings?.restockLocationId);
   const latestIssue = order.VendorOrderIssue[0] ?? null;
   const issue =
     latestIssue && ["OPEN", "RESOLVED"].includes(latestIssue.status)
@@ -255,7 +256,7 @@ export default async function OrderPage({ params }: PageProps<"/orders/[id]">) {
           {order.VendorReturn.length > 0 && (
             <Card
               title="Returns"
-              description="The store handles returns with the customer. Refunded items come off your earnings."
+              description="Approve or turn down returns of your items. Refunds stay with the store, and refunded items come off your earnings."
             >
               <ul className="divide-y divide-zinc-100">
                 {order.VendorReturn.map((vendorReturn) => {
@@ -289,6 +290,11 @@ export default async function OrderPage({ params }: PageProps<"/orders/[id]">) {
                         <p className="text-xs text-zinc-400">
                           {`Asked for ${dateFormat.format(vendorReturn.requestedAt)}`}
                         </p>
+                        <ReturnActions
+                          vendorReturnId={vendorReturn.id}
+                          status={vendorReturn.status}
+                          canRestock={canRestock}
+                        />
                       </div>
                     </li>
                   );
