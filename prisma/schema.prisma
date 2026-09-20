@@ -241,6 +241,7 @@ model VendorOrder {
   presentmentSubtotal Decimal?           @db.Decimal(12, 2)
   shippingMethod      String?
   refundedAt          DateTime?
+  acceptedAt          DateTime?
   Vendor              Vendor             @relation(fields: [vendorId], references: [id], onDelete: Cascade)
   VendorOrderIssue    VendorOrderIssue[]
   VendorOrderLine     VendorOrderLine[]
@@ -359,6 +360,15 @@ model OrderLineVendor {
   @@unique([shop, orderId, lineItemId])
   @@index([shop, orderId])
   @@index([vendorId])
+}
+
+model WebhookEvent {
+  id         String   @id
+  shop       String
+  topic      String
+  receivedAt DateTime @default(now())
+
+  @@index([receivedAt])
 }
 
 enum ShippingMode {

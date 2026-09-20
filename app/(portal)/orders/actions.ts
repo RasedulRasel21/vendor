@@ -87,6 +87,43 @@ export type IssueFormState = {
   errors?: Record<string, string>;
 };
 
+// Taking an order on is the vendor saying they'll pack it, which is what the store watches
+// for. Opening it isn't the same thing, so it's a deliberate click.
+export async function acceptOrder(vendorOrderId: string): Promise<IssueFormState> {
+  const user = await requireVendorUser();
+
+  const order = await db.vendorOrder.findFirst({
+    where: { id: vendorOrderId, vendorId: user.vendorId },
+    select: { id: true, orderName: true, status: true, acceptedAt: true, shippingMode: true },
+  });
+  if (!order) return { errors: { form: "This order wasn't found." } };
+  if (order.acceptedAt) return { ok: true };
+  if (!["OPEN", "PARTIAL"].includes(order.status)) {
+    return { errors: { form: "This order is already shipped or cancelled." } };
+  }
+
+  await db.$transaction([
+    db.vendorOrder.update({
+      where: { id: order.id },
+      data: { acceptedAt: new Date(), vendorSeenAt: new Date() },
+    }),
+    db.vendorActivity.create({
+      data: {
+        id: randomUUID(),
+        vendorId: user.vendorId,
+        action: "order.accepted",
+        actor: `vendor_user:${user.id}`,
+        details: { orderName: order.orderName },
+      },
+    }),
+  ]);
+
+  // The sidebar counts unopened orders, so it has to be refreshed too.
+  revalidatePath("/", "layout");
+  revalidatePath(`/orders/${order.id}`);
+  return { ok: true };
+}
+
 // Cancelling and refunding are the store's to do, so this tells them rather than doing it.
 export async function reportProblem(
   vendorOrderId: string,

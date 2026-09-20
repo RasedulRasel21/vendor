@@ -16,6 +16,7 @@ import { issueReasonLabel } from "@/lib/order-issues";
 import { RETURN_STATUS } from "@/lib/order-status";
 import { requireVendorUser } from "@/lib/session";
 import { secondaryButtonClass } from "@/lib/ui";
+import { AcceptForm } from "../accept-form";
 import { IssueBanner, ProblemForm } from "../problem-form";
 import { ShipForm, type ShippableLine } from "../ship-form";
 
@@ -231,6 +232,12 @@ export default async function OrderPage({ params }: PageProps<"/orders/[id]">) {
                       }`
               }
             >
+              {!issue && (
+                <AcceptForm
+                  vendorOrderId={order.id}
+                  acceptedOn={order.acceptedAt ? dateFormat.format(order.acceptedAt) : null}
+                />
+              )}
               <ShipForm vendorOrderId={order.id} lines={shippableLines} carriers={carriers} />
               {issue?.status !== "OPEN" && <ProblemForm vendorOrderId={order.id} />}
             </Card>
