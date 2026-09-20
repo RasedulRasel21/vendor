@@ -39,6 +39,7 @@ model ShopSettings {
   collectionsSyncedAt     DateTime?
   codRulesCustomizationId String?
   countryCode             String?
+  fulfillmentDays         Int       @default(3)
 }
 
 model Vendor {
@@ -67,6 +68,7 @@ model Vendor {
   payoutMethod        PayoutMethod?
   payoutUpdatedAt     DateTime?
   postalCode          String?
+  OrderLineVendor     OrderLineVendor[]
   ProductSubmission   ProductSubmission[]
   VendorActivity      VendorActivity[]
   VendorChangeRequest VendorChangeRequest[]
@@ -340,6 +342,23 @@ model VendorOrderIssue {
 
   @@index([status])
   @@index([vendorOrderId])
+}
+
+model OrderLineVendor {
+  id           String   @id
+  shop         String
+  orderId      String
+  lineItemId   String
+  vendorId     String
+  fromVendorId String?
+  title        String
+  movedBy      String
+  createdAt    DateTime @default(now())
+  Vendor       Vendor   @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+
+  @@unique([shop, orderId, lineItemId])
+  @@index([shop, orderId])
+  @@index([vendorId])
 }
 
 enum ShippingMode {

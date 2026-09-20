@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/portal/page-header";
 import { Pagination } from "@/components/portal/pagination";
 import { db } from "@/lib/db";
 import { formatMoney } from "@/lib/money";
+import { overdueCutoff } from "@/lib/deadline";
 import { ACTIVE_RETURN_STATUSES, ORDER_STATUS, type OrderStatus } from "@/lib/order-status";
 import { requireVendorUser } from "@/lib/session";
 import { secondaryButtonClass } from "@/lib/ui";
@@ -42,7 +43,11 @@ export default async function OrdersPage({ searchParams }: PageProps<"/orders">)
     },
   };
 
-  const [newCount, grouped, toPack] = await Promise.all([
+  const [settings, newCount, grouped, toPack] = await Promise.all([
+    db.shopSettings.findUnique({
+      where: { shop: user.Vendor.shop },
+      select: { fulfillmentDays: true },
+    }),
     db.vendorOrder.count({ where: { ...where, AND: [unopened] } }),
     db.vendorOrder.groupBy({ by: ["status"], where: { vendorId: user.vendorId }, _count: { _all: true } }),
     db.vendorOrder.count({
@@ -72,6 +77,11 @@ export default async function OrdersPage({ searchParams }: PageProps<"/orders">)
 
   const isNewOrder = (order: (typeof orders)[number]) =>
     !order.vendorSeenAt && ["OPEN", "PARTIAL"].includes(order.status);
+
+  // Late is measured from the store's own deadline, so both sides see the same thing.
+  const lateAfter = overdueCutoff(settings?.fulfillmentDays ?? 3);
+  const isLate = (order: (typeof orders)[number]) =>
+    ["OPEN", "PARTIAL"].includes(order.status) && order.placedAt < lateAfter;
 
   const counts = Object.fromEntries(grouped.map((row) => [row.status, row._count._all]));
   const total = grouped.reduce((sum, row) => sum + row._count._all, 0);
@@ -177,6 +187,11 @@ export default async function OrdersPage({ searchParams }: PageProps<"/orders">)
                           </span>
                         )}
                         <OrderStatusBadge status={order.status} />
+                        {isLate(order) && (
+                          <span className="inline-flex items-center rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-700">
+                            Overdue
+                          </span>
+                        )}
                         {order._count.VendorReturn > 0 && (
                           <span className="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-800">
                             Return

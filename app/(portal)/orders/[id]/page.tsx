@@ -1,4 +1,4 @@
-import { CircleCheck, Printer, RotateCcw, Truck, Undo2 } from "lucide-react";
+import { CircleCheck, Clock, Printer, RotateCcw, Truck, Undo2 } from "lucide-react";
 import type { Metadata } from "next";
 import { revalidatePath } from "next/cache";
 import Link from "next/link";
@@ -11,6 +11,7 @@ import { ProductThumb } from "@/components/portal/product-thumb";
 import { carrierOptions } from "@/lib/carriers";
 import { db } from "@/lib/db";
 import { formatMoney } from "@/lib/money";
+import { shipDeadline } from "@/lib/deadline";
 import { issueReasonLabel } from "@/lib/order-issues";
 import { RETURN_STATUS } from "@/lib/order-status";
 import { requireVendorUser } from "@/lib/session";
@@ -86,6 +87,15 @@ export default async function OrderPage({ params }: PageProps<"/orders/[id]">) {
 
   const canShip = !storeShips && ["OPEN", "PARTIAL"].includes(order.status) && shippableLines.length > 0;
   const carriers = canShip ? await carrierOptions(user.Vendor.shop, user.vendorId) : null;
+
+  // Only worth showing while something still has to go out.
+  const settings = canShip
+    ? await db.shopSettings.findUnique({
+        where: { shop: user.Vendor.shop },
+        select: { fulfillmentDays: true },
+      })
+    : null;
+  const deadline = settings ? shipDeadline(order.placedAt, settings.fulfillmentDays) : null;
   const latestIssue = order.VendorOrderIssue[0] ?? null;
   const issue =
     latestIssue && ["OPEN", "RESOLVED"].includes(latestIssue.status)
@@ -115,7 +125,7 @@ export default async function OrderPage({ params }: PageProps<"/orders/[id]">) {
       <PageHeader
         back={{ href: "/orders", label: "Orders" }}
         title={order.orderName}
-        description={`Placed ${dateFormat.format(order.placedAt)}`}
+        description={[`Placed ${dateFormat.format(order.placedAt)}`, deadline?.label].filter(Boolean).join(" · ")}
         meta={<OrderStatusBadge status={order.status} />}
         actions={
           storeShips ? null : (
@@ -126,6 +136,23 @@ export default async function OrderPage({ params }: PageProps<"/orders/[id]">) {
           )
         }
       />
+
+      {deadline?.overdue && !issue && (
+        <div className="mb-6 flex gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          <Clock className="mt-0.5 size-4 shrink-0" />
+          <div>
+            <p className="font-semibold">
+              {deadline.lateDays === 0
+                ? "This order is due today"
+                : `This order is ${deadline.lateDays} ${deadline.lateDays === 1 ? "day" : "days"} late`}
+            </p>
+            <p className="mt-1">
+              The store expects it shipped by now. Send it today, or tell them you can&apos;t ship it so
+              they can sort it out with the customer.
+            </p>
+          </div>
+        </div>
+      )}
 
       {issue && <IssueBanner vendorOrderId={order.id} issue={issue} />}
 
