@@ -7,6 +7,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { db } from "@/lib/db";
 import { formatMoney } from "@/lib/money";
 import { requireVendorUser } from "@/lib/session";
+import { payoutSummary } from "@/lib/store-app";
 import { primaryButtonClass, secondaryButtonClass } from "@/lib/ui";
 
 export const metadata: Metadata = {
@@ -48,14 +49,22 @@ export default async function DashboardPage() {
     db.shopSettings.findUnique({ where: { shop: vendor.shop }, select: { currencyCode: true } }),
   ]);
 
-  const [ordersToShip, ordersStoreShips] = await Promise.all([
+  const [ordersToShip, ordersStoreShips, payouts, lastPayout] = await Promise.all([
     db.vendorOrder.count({
       where: { vendorId: vendor.id, status: { in: ["OPEN", "PARTIAL"] }, shippingMode: "VENDOR_SHIPS" },
     }),
     db.vendorOrder.count({
       where: { vendorId: vendor.id, status: { in: ["OPEN", "PARTIAL"] }, shippingMode: "STORE_SHIPS" },
     }),
+    payoutSummary(vendor.id),
+    db.payout.findFirst({
+      where: { vendorId: vendor.id, status: "PAID" },
+      orderBy: { paidAt: "desc" },
+      select: { amount: true, currencyCode: true, paidAt: true },
+    }),
   ]);
+  // The balance comes from the store app; if it can't be reached the home page still works.
+  const earnings = "error" in payouts ? null : payouts;
 
   const count = (status: string) => grouped.find((row) => row.status === status)?._count._all ?? 0;
   const drafts = count("DRAFT");
@@ -119,6 +128,17 @@ export default async function DashboardPage() {
       detail: "The store needs them to send your earnings.",
       href: "/settings",
       action: "Add details",
+    });
+  }
+  if (earnings?.canRequest) {
+    tasks.push({
+      key: "request-payout",
+      icon: Wallet,
+      tone: "bg-primary-50 text-primary-700",
+      title: `${formatMoney(earnings.available.toFixed(2), currencyCode)} is ready to be paid`,
+      detail: "Ask the store for it and they'll send it to your payout account.",
+      href: "/earnings",
+      action: "Ask for it",
     });
   }
   if (drafts > 0) {
@@ -198,6 +218,41 @@ export default async function DashboardPage() {
           )}
         </section>
 
+        <div className="space-y-6">
+        <section aria-labelledby="earnings-heading" className="card-surface p-6">
+          <div className="flex items-baseline justify-between gap-3">
+            <h2 id="earnings-heading" className="font-display text-lg font-semibold">
+              Earnings
+            </h2>
+            <Link href="/earnings" className="text-sm font-semibold text-primary-700 underline-offset-4 hover:underline">
+              View all
+            </Link>
+          </div>
+          {earnings ? (
+            <dl className="mt-4 grid grid-cols-2 gap-4">
+              <div>
+                <dt className="text-sm text-zinc-500">Available</dt>
+                <dd className="mt-0.5 font-display text-xl font-semibold tabular-nums text-primary-700">
+                  {formatMoney(earnings.available.toFixed(2), currencyCode)}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-sm text-zinc-500">Not yet available</dt>
+                <dd className="mt-0.5 font-display text-xl font-semibold tabular-nums text-zinc-900">
+                  {formatMoney(earnings.pending.toFixed(2), currencyCode)}
+                </dd>
+              </div>
+            </dl>
+          ) : (
+            <p className="mt-4 text-sm text-zinc-500">Your balance couldn&apos;t be loaded right now.</p>
+          )}
+          <p className="mt-4 border-t border-zinc-100 pt-3 text-sm text-zinc-600">
+            {lastPayout?.paidAt
+              ? `Last paid ${formatMoney(lastPayout.amount.toString(), lastPayout.currencyCode)} on ${dateFormat.format(lastPayout.paidAt)}`
+              : "No payouts yet"}
+          </p>
+        </section>
+
         <section aria-labelledby="pipeline-heading" className="card-surface p-6">
           <div className="flex items-baseline justify-between gap-3">
             <h2 id="pipeline-heading" className="font-display text-lg font-semibold">
@@ -240,6 +295,7 @@ export default async function DashboardPage() {
             ))}
           </ul>
         </section>
+        </div>
       </div>
 
       <section aria-labelledby="recent-heading" className="mt-6 card-surface">
