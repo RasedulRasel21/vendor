@@ -52,6 +52,37 @@ export function askForPayout(vendorId: string, actor: string) {
   return payoutsCall<{ ok: true; amount: number; currencyCode: string }>({ vendorId, intent: "request", actor });
 }
 
+// Tax IDs are encrypted by the store app, which holds the key; the portal never stores one.
+export async function saveTaxDetails(
+  vendorId: string,
+  actor: string,
+  fields: Record<string, string>,
+): Promise<{ ok: true } | { errors: Record<string, string> } | { error: string }> {
+  const config = bridge();
+  if (!config) {
+    console.error("STORE_APP_URL or PORTAL_SYNC_SECRET is missing");
+    return { error: "Tax details can't be saved yet. Contact the store." };
+  }
+
+  try {
+    const response = await fetch(`${config.appUrl}/api/portal/tax`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-storevendor-secret": config.secret },
+      body: JSON.stringify({ vendorId, actor, fields }),
+      cache: "no-store",
+    });
+    const result = (await response.json().catch(() => null)) as
+      | { ok?: true; errors?: Record<string, string>; error?: string }
+      | null;
+    if (response.ok && result?.ok) return { ok: true };
+    if (result?.errors) return { errors: result.errors };
+    return { error: result?.error ?? "The store couldn't save that. Try again." };
+  } catch (error) {
+    console.error("Tax details request failed", error);
+    return { error: "The store couldn't be reached. Try again in a moment." };
+  }
+}
+
 // Approving, declining and restocking all happen in Shopify, so they go through the app the
 // same way shipping does.
 export async function requestReturnAction(input: {

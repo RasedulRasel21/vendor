@@ -7,6 +7,8 @@ import { requireVendorUser } from "@/lib/session";
 import { cancelPayoutRequest } from "./actions";
 import { ContactForm } from "./contact-form";
 import { PayoutForm } from "./payout-form";
+import { TaxForm } from "./tax-form";
+import type { TaxInfo } from "@/lib/tax";
 
 export const metadata: Metadata = {
   title: "Settings · StoreVendor",
@@ -45,6 +47,9 @@ export default async function SettingsPage() {
 
   const rejectedRequest = !pendingRequest && latestReviewed?.status === "REJECTED" ? latestReviewed : null;
   const current = payoutRows(vendor.payoutMethod, vendor.payoutDetails);
+  // Only the readable part goes to the page. The encrypted tax ID stays on the server, and
+  // the portal has no key to read it anyway.
+  const taxInfo = (vendor.taxInfo ?? null) as TaxInfo | null;
   const requested = pendingRequest
     ? payoutRows(
         (pendingRequest.requested as { method?: string } | null)?.method,
@@ -125,6 +130,33 @@ export default async function SettingsPage() {
             />
           ) : (
             <p className="text-sm text-zinc-500">Only the account owner can change payout details.</p>
+          )}
+        </div>
+      </Card>
+
+      <Card
+        title="Tax details"
+        description="Printed on your commission invoices, and used for the store's tax reporting where the law asks for it."
+      >
+        <div className="space-y-4">
+          {taxInfo ? (
+            <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-[auto_1fr]">
+              <dt className="text-zinc-500">Registered as</dt>
+              <dd className="text-zinc-900">{taxInfo.entityType === "BUSINESS" ? "A business" : "An individual"}</dd>
+              <dt className="text-zinc-500">Legal name</dt>
+              <dd className="text-zinc-900">{taxInfo.legalName}</dd>
+              <dt className="text-zinc-500">{taxInfo.taxIdType ?? "Tax ID"}</dt>
+              <dd className="text-zinc-900">{`•••• ${taxInfo.taxIdLast4 ?? ""}`}</dd>
+              <dt className="text-zinc-500">Country</dt>
+              <dd className="text-zinc-900">{taxInfo.countryCode}</dd>
+            </dl>
+          ) : (
+            <p className="text-sm text-zinc-600">Not added yet.</p>
+          )}
+          {isOwner ? (
+            <TaxForm current={taxInfo} fallbackCountry={vendor.countryCode ?? ""} />
+          ) : (
+            <p className="text-sm text-zinc-500">Only the account owner can change tax details.</p>
           )}
         </div>
       </Card>

@@ -7,6 +7,7 @@ import { COUNTRY_CODES } from "@/lib/countries";
 import { db } from "@/lib/db";
 import { validatePayout } from "@/lib/payout";
 import { requireVendorUser } from "@/lib/session";
+import { saveTaxDetails } from "@/lib/store-app";
 
 export type SettingsFormState = {
   ok?: boolean;
@@ -14,6 +15,28 @@ export type SettingsFormState = {
 };
 
 const field = (formData: FormData, name: string) => String(formData.get(name) ?? "").trim();
+
+// Tax details save straight away, like contact details, but only the owner can change them:
+// they end up on invoices and tax filings. The store app encrypts the tax ID.
+export async function saveTax(
+  _previousState: SettingsFormState,
+  formData: FormData,
+): Promise<SettingsFormState> {
+  const user = await requireVendorUser();
+  if (user.role !== "OWNER") return { errors: { form: "Only the account owner can change tax details." } };
+
+  const names = [
+    "entityType", "legalName", "countryCode", "taxId", "dateOfBirth", "line1", "line2", "city", "postalCode",
+  ];
+  const fields = Object.fromEntries(names.map((name) => [name, field(formData, name)]));
+
+  const result = await saveTaxDetails(user.vendorId, `vendor_user:${user.id}`, fields);
+  if ("errors" in result) return { errors: result.errors };
+  if ("error" in result) return { errors: { form: result.error } };
+
+  revalidatePath("/settings");
+  return { ok: true };
+}
 
 // Contact details don't need approval, so they save straight away.
 export async function updateContact(
