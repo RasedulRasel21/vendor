@@ -65,7 +65,10 @@ function isPayoutMethod(value: unknown): value is PayoutMethod {
   return PAYOUT_METHODS.some((method) => method.value === value);
 }
 
+// Stripe isn't typed into the form: the account comes from Stripe's own onboarding. It
+// still needs a label wherever payout details are shown.
 export function payoutMethodLabel(method: unknown) {
+  if (method === "STRIPE") return "Stripe";
   return PAYOUT_METHODS.find((item) => item.value === method)?.label ?? "";
 }
 
@@ -79,7 +82,15 @@ function mask(value: string) {
 
 // Label/value rows for showing payout details; account numbers are masked unless asked.
 export function payoutRows(method: unknown, details: unknown, { mask: hide = true } = {}) {
-  if (!isPayoutMethod(method) || !details || typeof details !== "object") return [];
+  if (!details || typeof details !== "object") return [];
+  if (method === "STRIPE") {
+    const account = (details as Partial<PayoutDetails>).accountNumber ?? "";
+    return [
+      { label: "Method", value: "Stripe" },
+      { label: "Stripe account", value: hide ? mask(account) : account },
+    ];
+  }
+  if (!isPayoutMethod(method)) return [];
 
   const values = details as Partial<PayoutDetails>;
   const number = values.accountNumber ?? "";

@@ -52,6 +52,42 @@ export function askForPayout(vendorId: string, actor: string) {
   return payoutsCall<{ ok: true; amount: number; currencyCode: string }>({ vendorId, intent: "request", actor });
 }
 
+export type StripeStatus = {
+  available: boolean;
+  accountId?: string | null;
+  detailsSubmitted?: boolean;
+  transfersActive?: boolean;
+};
+
+async function stripeCall<T>(body: Record<string, string>): Promise<T | { error: string }> {
+  const config = bridge();
+  if (!config) return { error: "Stripe isn't set up yet. Contact the store." };
+
+  try {
+    const response = await fetch(`${config.appUrl}/api/portal/stripe`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-storevendor-secret": config.secret },
+      body: JSON.stringify(body),
+      cache: "no-store",
+    });
+    const result = (await response.json().catch(() => null)) as (T & { error?: string }) | null;
+    if (response.ok && result && !result.error) return result;
+    return { error: result?.error ?? "The store couldn't reach Stripe. Try again." };
+  } catch (error) {
+    console.error("Stripe request failed", error);
+    return { error: "The store couldn't be reached. Try again in a moment." };
+  }
+}
+
+// Whether the store takes Stripe, and how far this vendor's Stripe account has got.
+export function stripeStatus(vendorId: string) {
+  return stripeCall<StripeStatus>({ vendorId, intent: "status" });
+}
+
+export function stripeOnboardingUrl(vendorId: string) {
+  return stripeCall<{ url: string }>({ vendorId, intent: "onboard" });
+}
+
 // Tax IDs are encrypted by the store app, which holds the key; the portal never stores one.
 export async function saveTaxDetails(
   vendorId: string,

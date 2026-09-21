@@ -4,7 +4,9 @@ import { PageHeader } from "@/components/portal/page-header";
 import { db } from "@/lib/db";
 import { payoutRows } from "@/lib/payout";
 import { requireVendorUser } from "@/lib/session";
-import { cancelPayoutRequest } from "./actions";
+import { cancelPayoutRequest, startStripe, switchToStripe } from "./actions";
+import { stripeStatus } from "@/lib/store-app";
+import { primaryButtonClass, secondaryButtonClass } from "@/lib/ui";
 import { ContactForm } from "./contact-form";
 import { PayoutForm } from "./payout-form";
 import { TaxForm } from "./tax-form";
@@ -29,10 +31,28 @@ function DetailRows({ rows }: { rows: { label: string; value: string }[] }) {
   );
 }
 
-export default async function SettingsPage() {
+// What happened on the way back from Stripe, or why the vendor was sent back.
+const STRIPE_NOTICE: Record<string, string> = {
+  done: "Back from Stripe. Once Stripe has checked your details you can ask to be paid there.",
+  retry: "The Stripe link expired. Start again to carry on where you left off.",
+  "not-ready": "Stripe hasn't finished checking your account yet. Try again shortly.",
+  requested: "Sent. The store approves the switch to Stripe like any payout change.",
+  owner: "Only the account owner can connect Stripe.",
+};
+
+export default async function SettingsPage({ searchParams }: PageProps<"/settings">) {
   const user = await requireVendorUser();
   const vendor = user.Vendor;
   const isOwner = user.role === "OWNER";
+  const { stripe: stripeParam, reason } = await searchParams;
+  const stripeNotice =
+    stripeParam === "error"
+      ? `Stripe couldn't be opened: ${typeof reason === "string" ? reason : "try again"}`
+      : typeof stripeParam === "string"
+        ? STRIPE_NOTICE[stripeParam]
+        : null;
+  const stripe = await stripeStatus(vendor.id);
+  const stripeInfo = "error" in stripe ? null : stripe;
 
   const [pendingRequest, latestReviewed] = await Promise.all([
     db.vendorChangeRequest.findFirst({
@@ -130,6 +150,39 @@ export default async function SettingsPage() {
             />
           ) : (
             <p className="text-sm text-zinc-500">Only the account owner can change payout details.</p>
+          )}
+
+          {/* Only when the store has connected Stripe: there's nothing to onboard to otherwise. */}
+          {stripeInfo?.available && (
+            <div className="space-y-3 border-t border-zinc-100 pt-4">
+              <div>
+                <p className="text-sm font-semibold text-zinc-900">Get paid through Stripe</p>
+                <p className="mt-1 text-sm text-zinc-600">
+                  The store can send payouts straight to a Stripe account instead of your bank or wallet.
+                  Stripe checks who you are, then pays out to your bank on its own schedule.
+                </p>
+              </div>
+              {stripeNotice && (
+                <p className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-700">{stripeNotice}</p>
+              )}
+              {vendor.payoutMethod === "STRIPE" ? (
+                <p className="text-sm font-medium text-primary-700">You&apos;re paid through Stripe.</p>
+              ) : stripeInfo.transfersActive ? (
+                <form action={switchToStripe}>
+                  <button type="submit" className={primaryButtonClass}>
+                    Ask to be paid through Stripe
+                  </button>
+                </form>
+              ) : stripeInfo.detailsSubmitted ? (
+                <p className="text-sm text-zinc-600">Stripe is checking your details. This usually takes a few minutes.</p>
+              ) : (
+                <form action={startStripe}>
+                  <button type="submit" className={secondaryButtonClass}>
+                    {stripeInfo.accountId ? "Finish setting up Stripe" : "Set up Stripe"}
+                  </button>
+                </form>
+              )}
+            </div>
           )}
         </div>
       </Card>

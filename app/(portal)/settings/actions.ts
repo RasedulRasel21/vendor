@@ -7,7 +7,8 @@ import { COUNTRY_CODES } from "@/lib/countries";
 import { db } from "@/lib/db";
 import { validatePayout } from "@/lib/payout";
 import { requireVendorUser } from "@/lib/session";
-import { saveTaxDetails } from "@/lib/store-app";
+import { saveTaxDetails, stripeOnboardingUrl, stripeStatus } from "@/lib/store-app";
+import { redirect } from "next/navigation";
 
 export type SettingsFormState = {
   ok?: boolean;
@@ -116,6 +117,16 @@ export async function requestPayoutChange(
   });
   if ("errors" in result) return { errors: result.errors };
 
+  await filePayoutChange(user, result.data);
+  revalidatePath("/settings");
+  return { ok: true };
+}
+
+type VendorUser = Awaited<ReturnType<typeof requireVendorUser>>;
+
+// Every payout change waits for the store's approval, however it was made: typed in, or a
+// Stripe account connected through onboarding. A newer request replaces an older one.
+async function filePayoutChange(user: VendorUser, requested: { method: string; details: object }) {
   const vendor = user.Vendor;
   const requestId = randomUUID();
   const now = new Date();
@@ -132,7 +143,7 @@ export async function requestPayoutChange(
         vendorId: vendor.id,
         type: "PAYOUT",
         status: "PENDING",
-        requested: result.data as unknown as Prisma.InputJsonValue,
+        requested: requested as unknown as Prisma.InputJsonValue,
         ...(vendor.payoutMethod
           ? {
               previous: {
@@ -151,13 +162,40 @@ export async function requestPayoutChange(
         vendorId: vendor.id,
         action: "vendor.payout_change_requested",
         actor: `vendor_user:${user.id}`,
-        details: { requestId, method: result.data.method },
+        details: { requestId, method: requested.method },
       },
     }),
   ]);
+}
 
+// Sends the vendor to Stripe's own onboarding, on the store's Stripe platform.
+export async function startStripe() {
+  const user = await requireVendorUser();
+  if (user.role !== "OWNER") redirect("/settings?stripe=owner");
+
+  const result = await stripeOnboardingUrl(user.vendorId);
+  if ("error" in result) redirect(`/settings?stripe=error&reason=${encodeURIComponent(result.error)}`);
+  redirect(result.url);
+}
+
+// Once Stripe says the account can take transfers, the vendor asks to be paid through it.
+// The account is re-checked here, so a vendor can't file an account that isn't theirs or
+// isn't ready.
+export async function switchToStripe() {
+  const user = await requireVendorUser();
+  if (user.role !== "OWNER") redirect("/settings?stripe=owner");
+
+  const status = await stripeStatus(user.vendorId);
+  if ("error" in status || !status.accountId || !status.transfersActive) {
+    redirect("/settings?stripe=not-ready");
+  }
+
+  await filePayoutChange(user, {
+    method: "STRIPE",
+    details: { accountName: user.Vendor.name, accountNumber: status.accountId },
+  });
   revalidatePath("/settings");
-  return { ok: true };
+  redirect("/settings?stripe=requested");
 }
 
 export async function cancelPayoutRequest() {

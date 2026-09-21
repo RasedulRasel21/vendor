@@ -67,6 +67,12 @@ model ShopSettings {
   us1099kTransactions     Int       @default(200)
   payoutFxEnabled         Boolean   @default(false)
   payoutFxRates           Json?
+  autoSendPayouts         Boolean   @default(false)
+  paypalAccount           String?
+  paypalCredentials       String?
+  paypalMode              String?
+  stripeAccount           String?
+  stripeSecretKey         String?
 }
 
 model Vendor {
@@ -98,6 +104,7 @@ model Vendor {
   taxIdEncrypted      String?
   taxInfo             Json?
   taxInfoUpdatedAt    DateTime?
+  stripeAccountId     String?
   CommissionInvoice   CommissionInvoice[]
   LedgerEntry         LedgerEntry[]
   OrderLineVendor     OrderLineVendor[]
@@ -448,6 +455,10 @@ model Payout {
   fxRate         Decimal?      @db.Decimal(18, 8)
   payoutAmount   Decimal?      @db.Decimal(14, 2)
   payoutCurrency String?
+  provider       String?
+  providerRef    String?
+  providerStatus String?
+  sentAt         DateTime?
   LedgerEntry    LedgerEntry[]
   Vendor         Vendor        @relation(fields: [vendorId], references: [id], onDelete: Cascade)
 
@@ -551,6 +562,7 @@ enum PayoutMethod {
   PAYONEER
   WISE
   OTHER
+  STRIPE
 }
 
 enum VendorOrderStatus {
