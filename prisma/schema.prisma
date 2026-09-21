@@ -61,6 +61,12 @@ model ShopSettings {
   commissionTaxRate       Decimal   @default(0) @db.Decimal(5, 2)
   invoicePrefix           String    @default("SV-")
   taxLabel                String    @default("VAT")
+  dac7MinAmount           Decimal   @default(2000) @db.Decimal(12, 2)
+  dac7MinTransactions     Int       @default(30)
+  us1099kAmount           Decimal   @default(20000) @db.Decimal(12, 2)
+  us1099kTransactions     Int       @default(200)
+  payoutFxEnabled         Boolean   @default(false)
+  payoutFxRates           Json?
 }
 
 model Vendor {
@@ -423,24 +429,27 @@ model LedgerEntry {
 }
 
 model Payout {
-  id           String        @id
-  shop         String
-  vendorId     String
-  amount       Decimal       @db.Decimal(12, 2)
-  currencyCode String
-  status       PayoutStatus  @default(PENDING)
-  method       PayoutMethod?
-  details      Json?
-  reference    String?
-  note         String?
-  requestedAt  DateTime?
-  createdBy    String
-  createdAt    DateTime      @default(now())
-  paidAt       DateTime?
-  cancelledAt  DateTime?
-  updatedAt    DateTime
-  LedgerEntry  LedgerEntry[]
-  Vendor       Vendor        @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  id             String        @id
+  shop           String
+  vendorId       String
+  amount         Decimal       @db.Decimal(12, 2)
+  currencyCode   String
+  status         PayoutStatus  @default(PENDING)
+  method         PayoutMethod?
+  details        Json?
+  reference      String?
+  note           String?
+  requestedAt    DateTime?
+  createdBy      String
+  createdAt      DateTime      @default(now())
+  paidAt         DateTime?
+  cancelledAt    DateTime?
+  updatedAt      DateTime
+  fxRate         Decimal?      @db.Decimal(18, 8)
+  payoutAmount   Decimal?      @db.Decimal(14, 2)
+  payoutCurrency String?
+  LedgerEntry    LedgerEntry[]
+  Vendor         Vendor        @relation(fields: [vendorId], references: [id], onDelete: Cascade)
 
   @@index([shop, status])
   @@index([vendorId, createdAt])

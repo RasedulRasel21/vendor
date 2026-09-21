@@ -35,6 +35,8 @@ export type PayoutDetails = {
   bankName?: string;
   branchName?: string;
   routingNumber?: string;
+  // The currency the vendor wants to receive, when it's not the store's.
+  currency?: string;
 };
 
 export type PayoutInput = {
@@ -44,7 +46,20 @@ export type PayoutInput = {
   bankName: string;
   branchName: string;
   routingNumber: string;
+  currency?: string;
 };
+
+// Currencies a vendor can ask to be paid in, named in English.
+export function currencyOptions() {
+  try {
+    const names = new Intl.DisplayNames(["en"], { type: "currency" });
+    return Intl.supportedValuesOf("currency")
+      .map((code) => ({ code, name: `${names.of(code) ?? code} (${code})` }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  } catch {
+    return ["USD", "EUR", "GBP", "INR", "BDT", "AED", "CAD", "AUD"].map((code) => ({ code, name: code }));
+  }
+}
 
 function isPayoutMethod(value: unknown): value is PayoutMethod {
   return PAYOUT_METHODS.some((method) => method.value === value);
@@ -79,6 +94,7 @@ export function payoutRows(method: unknown, details: unknown, { mask: hide = tru
     if (values.branchName) rows.push({ label: "Branch", value: values.branchName });
     if (values.routingNumber) rows.push({ label: "Routing or SWIFT code", value: values.routingNumber });
   }
+  if (values.currency) rows.push({ label: "Paid in", value: values.currency });
 
   return rows;
 }
@@ -152,6 +168,11 @@ export function validatePayout(
   const account = checkAccount(method, input.accountNumber);
   if ("error" in account) errors.accountNumber = account.error;
 
+  // Blank means the store's own currency.
+  const currency = (input.currency ?? "").trim().toUpperCase();
+  if (currency && !/^[A-Z]{3}$/.test(currency)) errors.currency = "Choose a currency from the list";
+  const extra = currency ? { currency } : {};
+
   if (method === "BANK") {
     const bankName = input.bankName.trim();
     const branchName = input.branchName.trim();
@@ -175,11 +196,12 @@ export function validatePayout(
           bankName,
           ...(branchName ? { branchName } : {}),
           ...(routingNumber ? { routingNumber } : {}),
+          ...extra,
         },
       },
     };
   }
 
   if (Object.keys(errors).length || "error" in account) return { errors };
-  return { data: { method, details: { accountName, accountNumber: account.value } } };
+  return { data: { method, details: { accountName, accountNumber: account.value, ...extra } } };
 }

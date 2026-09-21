@@ -200,6 +200,11 @@ export default async function EarningsPage() {
                       </td>
                       <td className="px-6 py-3 text-right font-medium tabular-nums text-zinc-900">
                         {money(payout.amount.toString())}
+                        {payout.payoutCurrency && payout.payoutAmount && (
+                          <span className="block text-xs font-normal text-zinc-500">
+                            {`${formatMoney(payout.payoutAmount.toString(), payout.payoutCurrency)} at ${Number(payout.fxRate)}`}
+                          </span>
+                        )}
                       </td>
                     </tr>
                   );

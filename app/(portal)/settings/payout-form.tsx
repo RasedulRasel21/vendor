@@ -1,11 +1,12 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { ACCOUNT_FIELD, PAYOUT_METHODS, type PayoutMethod } from "@/lib/payout";
+import { ACCOUNT_FIELD, currencyOptions, PAYOUT_METHODS, type PayoutMethod } from "@/lib/payout";
 import { errorClass, inputClass, labelClass, secondaryButtonClass } from "@/lib/ui";
 import { requestPayoutChange, type SettingsFormState } from "./actions";
 
 const initialState: SettingsFormState = {};
+const currencies = currencyOptions();
 
 function Field({
   name,
@@ -105,6 +106,28 @@ export function PayoutForm({ hasPayout, hasPendingRequest }: { hasPayout: boolea
               help="Whatever your bank uses to identify itself for transfers."
             />
           </>
+        )}
+      </div>
+
+      <div>
+        <label htmlFor="payout-currency" className={labelClass}>
+          Currency to be paid in
+        </label>
+        <select id="payout-currency" name="currency" defaultValue="" className={inputClass}>
+          <option value="">The store&apos;s currency</option>
+          {currencies.map((option) => (
+            <option key={option.code} value={option.code}>
+              {option.name}
+            </option>
+          ))}
+        </select>
+        {errors.currency ? (
+          <p className={errorClass}>{errors.currency}</p>
+        ) : (
+          <p className="mt-1 text-xs text-zinc-500">
+            If the store converts payouts, it sends this currency at its own rate. Otherwise you&apos;re paid in
+            the store&apos;s currency.
+          </p>
         )}
       </div>
 

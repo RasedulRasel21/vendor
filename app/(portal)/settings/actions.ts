@@ -112,6 +112,7 @@ export async function requestPayoutChange(
     bankName: field(formData, "bankName"),
     branchName: field(formData, "branchName"),
     routingNumber: field(formData, "routingNumber"),
+    currency: field(formData, "currency"),
   });
   if ("errors" in result) return { errors: result.errors };
 
