@@ -39,7 +39,7 @@ export default async function EarningsPage() {
   const user = await requireVendorUser();
   const vendorId = user.vendorId;
 
-  const [summary, entries, total, payouts, months] = await Promise.all([
+  const [summary, entries, total, payouts, months, invoices] = await Promise.all([
     payoutSummary(vendorId),
     db.ledgerEntry.findMany({
       where: { vendorId },
@@ -61,6 +61,12 @@ export default async function EarningsPage() {
       SELECT DISTINCT to_char("createdAt", 'YYYY-MM') AS month
       FROM "LedgerEntry" WHERE "vendorId" = ${vendorId}
       ORDER BY month DESC LIMIT 24`,
+    db.commissionInvoice.findMany({
+      where: { vendorId },
+      orderBy: { sequence: "desc" },
+      take: 12,
+      select: { id: true, number: true, periodStart: true, total: true, currencyCode: true },
+    }),
   ]);
 
   const failed = "error" in summary;
@@ -201,6 +207,34 @@ export default async function EarningsPage() {
               </tbody>
             </table>
           </div>
+        </section>
+      )}
+
+      {invoices.length > 0 && (
+        <section className="card-surface mb-6">
+          <h2 className="border-b border-zinc-200 px-6 py-4 font-display text-lg font-semibold text-zinc-900">
+            Commission invoices
+          </h2>
+          <ul className="divide-y divide-zinc-100">
+            {invoices.map((invoice) => (
+              <li key={invoice.id}>
+                <Link
+                  href={`/earnings/invoices/${invoice.id}`}
+                  className="flex items-center justify-between gap-4 px-6 py-3 text-sm hover:bg-zinc-50"
+                >
+                  <span>
+                    <span className="font-medium text-zinc-900">
+                      {`${Number(invoice.total) < 0 ? "Credit note" : "Invoice"} ${invoice.number}`}
+                    </span>
+                    <span className="block text-xs text-zinc-500">{monthFormat.format(invoice.periodStart)}</span>
+                  </span>
+                  <span className="tabular-nums text-zinc-900">
+                    {formatMoney(invoice.total.toString(), invoice.currencyCode)}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
         </section>
       )}
 

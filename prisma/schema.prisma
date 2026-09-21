@@ -48,6 +48,19 @@ model ShopSettings {
   payoutHoldDays          Int       @default(7)
   payoutMinimum           Decimal   @default(0) @db.Decimal(12, 2)
   payoutRequests          Boolean   @default(true)
+  payoutSchedule          String    @default("MANUAL")
+  refundKeepsCommission   Boolean   @default(false)
+  emailApiKey             String?
+  emailFrom               String?
+  emailProvider           String?
+  emailReplyTo            String?
+  autoInvoices            Boolean   @default(false)
+  businessAddress         String?
+  businessName            String?
+  businessTaxId           String?
+  commissionTaxRate       Decimal   @default(0) @db.Decimal(5, 2)
+  invoicePrefix           String    @default("SV-")
+  taxLabel                String    @default("VAT")
 }
 
 model Vendor {
@@ -76,6 +89,10 @@ model Vendor {
   payoutMethod        PayoutMethod?
   payoutUpdatedAt     DateTime?
   postalCode          String?
+  taxIdEncrypted      String?
+  taxInfo             Json?
+  taxInfoUpdatedAt    DateTime?
+  CommissionInvoice   CommissionInvoice[]
   LedgerEntry         LedgerEntry[]
   OrderLineVendor     OrderLineVendor[]
   Payout              Payout[]
@@ -219,45 +236,46 @@ model VendorChangeRequest {
 }
 
 model VendorOrder {
-  id                  String             @id
-  shop                String
-  vendorId            String
-  status              VendorOrderStatus  @default(OPEN)
-  orderId             String
-  orderName           String
-  currencyCode        String
-  financialStatus     String?
-  customerName        String?
-  customerEmail       String?
-  customerPhone       String?
-  shippingAddress     Json?
-  subtotal            Decimal            @db.Decimal(12, 2)
-  commission          Decimal            @db.Decimal(12, 2)
-  shipping            Decimal            @default(0) @db.Decimal(12, 2)
-  earnings            Decimal            @db.Decimal(12, 2)
-  placedAt            DateTime
-  fulfilledAt         DateTime?
-  cancelledAt         DateTime?
-  createdAt           DateTime           @default(now())
-  updatedAt           DateTime
-  shippingMode        ShippingMode       @default(VENDOR_SHIPS)
-  paidAt              DateTime?
-  refunded            Decimal            @default(0) @db.Decimal(12, 2)
-  refundedCommission  Decimal            @default(0) @db.Decimal(12, 2)
-  refundedEarnings    Decimal            @default(0) @db.Decimal(12, 2)
-  vendorSeenAt        DateTime?
-  deliveryMethod      String?
-  presentmentCurrency String?
-  presentmentSubtotal Decimal?           @db.Decimal(12, 2)
-  shippingMethod      String?
-  refundedAt          DateTime?
-  acceptedAt          DateTime?
-  LedgerEntry         LedgerEntry[]
-  Vendor              Vendor             @relation(fields: [vendorId], references: [id], onDelete: Cascade)
-  VendorOrderIssue    VendorOrderIssue[]
-  VendorOrderLine     VendorOrderLine[]
-  VendorReturn        VendorReturn[]
-  VendorShipment      VendorShipment[]
+  id                    String             @id
+  shop                  String
+  vendorId              String
+  status                VendorOrderStatus  @default(OPEN)
+  orderId               String
+  orderName             String
+  currencyCode          String
+  financialStatus       String?
+  customerName          String?
+  customerEmail         String?
+  customerPhone         String?
+  shippingAddress       Json?
+  subtotal              Decimal            @db.Decimal(12, 2)
+  commission            Decimal            @db.Decimal(12, 2)
+  shipping              Decimal            @default(0) @db.Decimal(12, 2)
+  earnings              Decimal            @db.Decimal(12, 2)
+  placedAt              DateTime
+  fulfilledAt           DateTime?
+  cancelledAt           DateTime?
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime
+  shippingMode          ShippingMode       @default(VENDOR_SHIPS)
+  paidAt                DateTime?
+  refunded              Decimal            @default(0) @db.Decimal(12, 2)
+  refundedCommission    Decimal            @default(0) @db.Decimal(12, 2)
+  refundedEarnings      Decimal            @default(0) @db.Decimal(12, 2)
+  vendorSeenAt          DateTime?
+  deliveryMethod        String?
+  presentmentCurrency   String?
+  presentmentSubtotal   Decimal?           @db.Decimal(12, 2)
+  shippingMethod        String?
+  refundedAt            DateTime?
+  acceptedAt            DateTime?
+  refundKeepsCommission Boolean            @default(false)
+  LedgerEntry           LedgerEntry[]
+  Vendor                Vendor             @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  VendorOrderIssue      VendorOrderIssue[]
+  VendorOrderLine       VendorOrderLine[]
+  VendorReturn          VendorReturn[]
+  VendorShipment        VendorShipment[]
 
   @@unique([shop, orderId, vendorId])
   @@index([shop, status])
@@ -428,6 +446,50 @@ model Payout {
   @@index([vendorId, createdAt])
 }
 
+model CommissionInvoice {
+  id           String   @id
+  shop         String
+  vendorId     String
+  number       String
+  sequence     Int
+  periodStart  DateTime
+  periodEnd    DateTime
+  currencyCode String
+  net          Decimal  @db.Decimal(12, 2)
+  taxLabel     String
+  taxRate      Decimal  @db.Decimal(5, 2)
+  taxAmount    Decimal  @db.Decimal(12, 2)
+  total        Decimal  @db.Decimal(12, 2)
+  lines        Json
+  seller       Json
+  buyer        Json
+  issuedAt     DateTime @default(now())
+  Vendor       Vendor   @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+
+  @@unique([shop, number])
+  @@unique([shop, vendorId, periodStart])
+  @@index([vendorId, issuedAt])
+}
+
+model EmailMessage {
+  id          String      @id
+  shop        String
+  to          String
+  subject     String
+  text        String
+  html        String?
+  template    String
+  status      EmailStatus @default(QUEUED)
+  error       String?
+  providerId  String?
+  relatedType String?
+  relatedId   String?
+  createdAt   DateTime    @default(now())
+  sentAt      DateTime?
+
+  @@index([shop, createdAt])
+}
+
 enum ShippingMode {
   VENDOR_SHIPS
   STORE_SHIPS
@@ -517,4 +579,11 @@ enum PayoutStatus {
   PAID
   FAILED
   CANCELLED
+}
+
+enum EmailStatus {
+  QUEUED
+  SENT
+  FAILED
+  SKIPPED
 }
