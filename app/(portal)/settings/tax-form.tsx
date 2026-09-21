@@ -1,23 +1,14 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { COUNTRY_CODES } from "@/lib/countries";
+import { COUNTRIES } from "@/lib/countries";
 import { EU_COUNTRIES, taxIdName, type TaxInfo } from "@/lib/tax";
 import { errorClass, inputClass, labelClass, primaryButtonClass, secondaryButtonClass } from "@/lib/ui";
 import { saveTax, type SettingsFormState } from "./actions";
 
 const initialState: SettingsFormState = {};
 
-const countries = (() => {
-  try {
-    const names = new Intl.DisplayNames(["en"], { type: "region" });
-    return COUNTRY_CODES.map((code) => ({ code, name: names.of(code) ?? code })).sort((a, b) =>
-      a.name.localeCompare(b.name),
-    );
-  } catch {
-    return COUNTRY_CODES.map((code) => ({ code, name: code }));
-  }
-})();
+const countries = COUNTRIES;
 
 function Field({
   name,

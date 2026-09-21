@@ -1,22 +1,13 @@
 "use client";
 
 import { useActionState } from "react";
-import { COUNTRY_CODES } from "@/lib/countries";
+import { COUNTRIES } from "@/lib/countries";
 import { errorClass, inputClass, labelClass } from "@/lib/ui";
 import { updateContact, type SettingsFormState } from "./actions";
 
 const initialState: SettingsFormState = {};
 
-const countries = (() => {
-  try {
-    const names = new Intl.DisplayNames(["en"], { type: "region" });
-    return COUNTRY_CODES.map((code) => ({ code, name: names.of(code) ?? code })).sort((a, b) =>
-      a.name.localeCompare(b.name),
-    );
-  } catch {
-    return COUNTRY_CODES.map((code) => ({ code, name: code }));
-  }
-})();
+const countries = COUNTRIES;
 
 type Contact = {
   phone: string;

@@ -1,6 +1,6 @@
 "use client";
 
-import { COUNTRY_CODES } from "@/lib/countries";
+import { COUNTRIES } from "@/lib/countries";
 import { currencySymbol } from "@/lib/money";
 import { WEIGHT_UNITS, type VariantDraft, type WeightUnit } from "@/lib/product-draft";
 import { errorClass, inputClass, labelClass } from "@/lib/ui";
@@ -15,16 +15,7 @@ type SectionProps = {
   currencyCode: string;
 };
 
-const countryNames = (() => {
-  try {
-    const names = new Intl.DisplayNames(["en"], { type: "region" });
-    return COUNTRY_CODES.map((code) => ({ code, name: names.of(code) ?? code })).sort((a, b) =>
-      a.name.localeCompare(b.name),
-    );
-  } catch {
-    return COUNTRY_CODES.map((code) => ({ code, name: code }));
-  }
-})();
+const countryNames = COUNTRIES;
 
 const idFor = (prefix: string, field: string) => `${prefix}.${field}`.replace(/\./g, "-");
 

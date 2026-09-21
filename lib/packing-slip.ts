@@ -1,5 +1,7 @@
 import QRCode from "qrcode";
 
+const slipDate = new Intl.DateTimeFormat("en", { dateStyle: "medium" });
+
 export type SlipLine = {
   id: string;
   title: string;
@@ -21,6 +23,9 @@ export type SlipData = {
   id: string;
   orderName: string;
   placedAt: Date;
+  // Formatted here on the server: the slip is a client component, and a date formatted in the
+  // browser's timezone can land on a different day than the server's, which breaks hydration.
+  placedOn: string;
   vendorName: string;
   shopName: string;
   currencyCode: string;
@@ -128,6 +133,7 @@ export async function buildSlip(order: OrderForSlip, vendorName: string): Promis
     id: order.id,
     orderName: order.orderName,
     placedAt: order.placedAt,
+    placedOn: slipDate.format(order.placedAt),
     vendorName,
     shopName: shopName(order.shop),
     currencyCode: order.currencyCode,

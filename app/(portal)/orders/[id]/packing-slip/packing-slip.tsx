@@ -18,7 +18,6 @@ const CONTENT_OPTIONS: { key: keyof Options; label: string; help: string }[] = [
   { key: "returnNote", label: "Return instructions", help: "Printed at the bottom" },
 ];
 
-const dateFormat = new Intl.DateTimeFormat("en", { dateStyle: "medium" });
 
 export function PackingSlipSheet({
   slip,
@@ -55,7 +54,7 @@ export function PackingSlipSheet({
           <div className="text-right">
             <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Packing slip</p>
             <p className="font-display text-xl font-bold text-zinc-900">{slip.orderName}</p>
-            <p className="text-zinc-500">{dateFormat.format(slip.placedAt)}</p>
+            <p className="text-zinc-500">{slip.placedOn}</p>
           </div>
           {options.skus && (
             <div
@@ -88,7 +87,7 @@ export function PackingSlipSheet({
           <h2 className="mb-1 text-xs font-semibold uppercase tracking-wide text-zinc-500">Order</h2>
           <p className="leading-6 text-zinc-800">
             {slip.orderName}
-            <span className="block text-zinc-600">{dateFormat.format(slip.placedAt)}</span>
+            <span className="block text-zinc-600">{slip.placedOn}</span>
           </p>
         </div>
 

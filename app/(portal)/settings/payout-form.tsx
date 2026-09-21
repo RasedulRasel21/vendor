@@ -1,12 +1,13 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { ACCOUNT_FIELD, currencyOptions, PAYOUT_METHODS, type PayoutMethod } from "@/lib/payout";
+import { CURRENCIES } from "@/lib/currencies";
+import { ACCOUNT_FIELD, PAYOUT_METHODS, type PayoutMethod } from "@/lib/payout";
 import { errorClass, inputClass, labelClass, secondaryButtonClass } from "@/lib/ui";
 import { requestPayoutChange, type SettingsFormState } from "./actions";
 
 const initialState: SettingsFormState = {};
-const currencies = currencyOptions();
+const currencies = CURRENCIES;
 
 function Field({
   name,

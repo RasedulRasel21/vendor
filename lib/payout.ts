@@ -49,17 +49,6 @@ export type PayoutInput = {
   currency?: string;
 };
 
-// Currencies a vendor can ask to be paid in, named in English.
-export function currencyOptions() {
-  try {
-    const names = new Intl.DisplayNames(["en"], { type: "currency" });
-    return Intl.supportedValuesOf("currency")
-      .map((code) => ({ code, name: `${names.of(code) ?? code} (${code})` }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-  } catch {
-    return ["USD", "EUR", "GBP", "INR", "BDT", "AED", "CAD", "AUD"].map((code) => ({ code, name: code }));
-  }
-}
 
 function isPayoutMethod(value: unknown): value is PayoutMethod {
   return PAYOUT_METHODS.some((method) => method.value === value);
