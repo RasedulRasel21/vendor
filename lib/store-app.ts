@@ -6,6 +6,52 @@ function bridge() {
   return { appUrl: appUrl.replace(/\/$/, ""), secret };
 }
 
+export type PayoutSummary = {
+  pending: number;
+  available: number;
+  inFlight: number;
+  paid: number;
+  currencyCode: string;
+  holdDays: number;
+  minimum: number;
+  requestsAllowed: boolean;
+  hasPayoutDetails: boolean;
+  openPayout: { status: string; amount: number } | null;
+  canRequest: boolean;
+};
+
+async function payoutsCall<T>(body: Record<string, string>): Promise<T | { error: string }> {
+  const config = bridge();
+  if (!config) {
+    console.error("STORE_APP_URL or PORTAL_SYNC_SECRET is missing");
+    return { error: "Earnings aren't set up yet. Contact the store." };
+  }
+
+  try {
+    const response = await fetch(`${config.appUrl}/api/portal/payouts`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-storevendor-secret": config.secret },
+      body: JSON.stringify(body),
+      cache: "no-store",
+    });
+    const result = (await response.json().catch(() => null)) as (T & { error?: string }) | null;
+    if (response.ok && result && !result.error) return result;
+    return { error: result?.error ?? "The store couldn't be reached. Try again." };
+  } catch (error) {
+    console.error("Payouts request failed", error);
+    return { error: "The store couldn't be reached. Try again in a moment." };
+  }
+}
+
+// Balances are worked out by the store app, next to the ledger, so both sides always agree.
+export function payoutSummary(vendorId: string) {
+  return payoutsCall<PayoutSummary>({ vendorId, intent: "balance" });
+}
+
+export function askForPayout(vendorId: string, actor: string) {
+  return payoutsCall<{ ok: true; amount: number; currencyCode: string }>({ vendorId, intent: "request", actor });
+}
+
 // Approving, declining and restocking all happen in Shopify, so they go through the app the
 // same way shipping does.
 export async function requestReturnAction(input: {

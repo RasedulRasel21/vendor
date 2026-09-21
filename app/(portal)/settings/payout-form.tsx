@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { PAYOUT_METHODS } from "@/lib/payout";
+import { ACCOUNT_FIELD, PAYOUT_METHODS, type PayoutMethod } from "@/lib/payout";
 import { errorClass, inputClass, labelClass, secondaryButtonClass } from "@/lib/ui";
 import { requestPayoutChange, type SettingsFormState } from "./actions";
 
@@ -18,7 +18,7 @@ function Field({
   label: string;
   error?: string;
   help?: string;
-  inputMode?: "numeric" | "tel" | "text";
+  inputMode?: "numeric" | "tel" | "text" | "email";
 }) {
   return (
     <div>
@@ -41,7 +41,8 @@ function Field({
 // Starts closed, so vendors don't retype payout details by accident.
 export function PayoutForm({ hasPayout, hasPendingRequest }: { hasPayout: boolean; hasPendingRequest: boolean }) {
   const [open, setOpen] = useState(false);
-  const [method, setMethod] = useState<string>("BANK");
+  const [method, setMethod] = useState<PayoutMethod>("BANK");
+  const account = ACCOUNT_FIELD[method];
   const [state, formAction, pending] = useActionState(requestPayoutChange, initialState);
   const errors = state.errors ?? {};
 
@@ -84,27 +85,24 @@ export function PayoutForm({ hasPayout, hasPendingRequest }: { hasPayout: boolea
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Field name="accountName" label="Account holder name" error={errors.accountName} />
-        {method === "BANK" ? (
-          <Field name="accountNumber" label="Account number" inputMode="numeric" error={errors.accountNumber} />
-        ) : (
-          <Field
-            name="accountNumber"
-            label="Wallet number"
-            inputMode="tel"
-            error={errors.accountNumber}
-            help="The 11-digit number registered with the wallet."
-          />
-        )}
+        {/* Keyed by method so switching clears a number typed for a different one. */}
+        <Field
+          key={method}
+          name="accountNumber"
+          label={account.label}
+          inputMode={account.inputMode}
+          error={errors.accountNumber}
+          help={account.help}
+        />
         {method === "BANK" && (
           <>
             <Field name="bankName" label="Bank name" error={errors.bankName} />
-            <Field name="branchName" label="Branch name" error={errors.branchName} />
+            <Field name="branchName" label="Branch (optional)" error={errors.branchName} />
             <Field
               name="routingNumber"
-              label="Routing number (optional)"
-              inputMode="numeric"
+              label="Routing, SWIFT, IFSC or sort code (optional)"
               error={errors.routingNumber}
-              help="9 digits, printed on your cheque book."
+              help="Whatever your bank uses to identify itself for transfers."
             />
           </>
         )}

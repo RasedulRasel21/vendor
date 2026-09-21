@@ -1,6 +1,6 @@
 "use client";
 
-import { House, LogOut, Menu, Package, Plus, Settings, Truck, X } from "lucide-react";
+import { House, LogOut, Menu, Package, Plus, Settings, Truck, Wallet, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -10,6 +10,7 @@ const NAV = [
   { href: "/dashboard", label: "Home", icon: House },
   { href: "/products", label: "Products", icon: Package },
   { href: "/orders", label: "Orders", icon: Truck },
+  { href: "/earnings", label: "Earnings", icon: Wallet },
   { href: "/settings", label: "Settings", icon: Settings },
 ] as const;
 
