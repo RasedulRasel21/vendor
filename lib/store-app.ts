@@ -193,3 +193,74 @@ export async function requestFulfillment(input: {
     return { error: "The store couldn't be reached. Try again in a moment." };
   }
 }
+
+export type ApplicationForm = {
+  storeName: string;
+  open: boolean;
+  intro: string | null;
+  termsUrl: string | null;
+  catalogueSizes: { value: string; label: string }[];
+};
+
+export type ApplicationInput = {
+  name: string;
+  contactName: string;
+  email: string;
+  phone: string;
+  countryCode: string;
+  website: string;
+  sells: string;
+  catalogueSize: string;
+  message: string;
+  agreedTerms: boolean;
+  // A field no person can see. Anything that fills it in is filling in every field.
+  website2: string;
+};
+
+// The "sell with us" page is public, so the store it belongs to is found by a handle and
+// nothing else about that store is exposed. The app decides what to do with what's sent:
+// the portal only draws the form and passes it on.
+async function applyCall<T>(body: Record<string, unknown>): Promise<T | { error: string }> {
+  const config = bridge();
+  if (!config) {
+    console.error("STORE_APP_URL or PORTAL_SYNC_SECRET is missing");
+    return { error: "Applications aren't set up yet." };
+  }
+
+  try {
+    const response = await fetch(`${config.appUrl}/api/portal/apply`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-storevendor-secret": config.secret },
+      body: JSON.stringify(body),
+      cache: "no-store",
+    });
+    const result = (await response.json().catch(() => null)) as
+      | (T & { error?: string; errors?: Record<string, string> })
+      | null;
+    if (response.status === 404) return { error: "notFound" };
+    if (response.ok && result && !result.error) return result;
+    if (result?.errors) return result as T;
+    return { error: result?.error ?? "The store couldn't be reached. Try again." };
+  } catch (error) {
+    console.error("Application request failed", error);
+    return { error: "The store couldn't be reached. Try again in a moment." };
+  }
+}
+
+export function applicationForm(handle: string) {
+  return applyCall<ApplicationForm>({ handle, intent: "form" });
+}
+
+export function sendApplication(
+  handle: string,
+  application: ApplicationInput,
+  meta: { ip: string | null; elapsedMs?: number },
+) {
+  return applyCall<{ ok: true; errors?: Record<string, string> }>({
+    handle,
+    intent: "submit",
+    application,
+    ip: meta.ip,
+    elapsedMs: meta.elapsedMs,
+  });
+}

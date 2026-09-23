@@ -79,6 +79,10 @@ model ShopSettings {
   payoutFxSource          String?
   payoutChangeHoldEnabled Boolean   @default(true)
   payoutChangeHoldHours   Int       @default(48)
+  applyHandle             String?   @unique
+  applyIntro              String?
+  applyOpen               Boolean   @default(true)
+  applyTermsUrl           String?
 }
 
 model Vendor {
@@ -111,6 +115,9 @@ model Vendor {
   taxInfo             Json?
   taxInfoUpdatedAt    DateTime?
   stripeAccountId     String?
+  applicantHash       String?
+  application         Json?
+  appliedAt           DateTime?
   CommissionInvoice   CommissionInvoice[]
   LedgerEntry         LedgerEntry[]
   OrderLineVendor     OrderLineVendor[]
