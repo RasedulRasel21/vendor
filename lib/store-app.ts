@@ -12,7 +12,8 @@ export type PayoutSummary = {
   inFlight: number;
   paid: number;
   currencyCode: string;
-  holdDays: number;
+  // Already worded by the store app, like "7 days" or "1 month".
+  hold: string;
   minimum: number;
   requestsAllowed: boolean;
   hasPayoutDetails: boolean;

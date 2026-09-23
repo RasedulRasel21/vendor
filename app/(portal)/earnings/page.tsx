@@ -93,7 +93,7 @@ export default async function EarningsPage() {
         {
           label: "Not yet available",
           value: money(summary.pending),
-          note: `Released ${summary.holdDays} ${summary.holdDays === 1 ? "day" : "days"} after an order is paid and shipped`,
+          note: `Released ${summary.hold} after an order is paid and shipped`,
         },
         { label: "On its way", value: money(summary.inFlight), note: "Set aside by the store" },
         { label: "Paid so far", value: money(summary.paid), note: "Everything sent to you" },
