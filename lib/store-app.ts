@@ -18,6 +18,9 @@ export type PayoutSummary = {
   requestsAllowed: boolean;
   hasPayoutDetails: boolean;
   openPayout: { status: string; amount: number } | null;
+  // Set while payouts are paused after this vendor's payout details changed, as an ISO
+  // date: the window in which a change nobody meant to make can still be stopped.
+  payoutChangeHold: string | null;
   canRequest: boolean;
 };
 

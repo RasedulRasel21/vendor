@@ -135,6 +135,8 @@ export default async function EarningsPage() {
                     : `${money(summary.openPayout.amount)} is on its way. It shows as sent once the store has paid it.`
                   : !summary.hasPayoutDetails
                     ? "Add where you want to be paid before the store can pay you."
+                    : summary.payoutChangeHold
+                      ? "Your payout details changed recently, so payouts are paused for a short while. If that wasn't you, tell the store now."
                     : !summary.requestsAllowed
                       ? "The store pays out on its own schedule."
                       : summary.available <= 0

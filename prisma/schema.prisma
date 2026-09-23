@@ -77,6 +77,8 @@ model ShopSettings {
   payoutFxBase            String?
   payoutFxRatesAt         DateTime?
   payoutFxSource          String?
+  payoutChangeHoldEnabled Boolean   @default(true)
+  payoutChangeHoldHours   Int       @default(48)
 }
 
 model Vendor {
