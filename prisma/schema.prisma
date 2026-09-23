@@ -73,6 +73,10 @@ model ShopSettings {
   payoutMinimumEnabled    Boolean   @default(false)
   shopEmail               String?
   shopName                String?
+  payoutFxAuto            Boolean   @default(true)
+  payoutFxBase            String?
+  payoutFxRatesAt         DateTime?
+  payoutFxSource          String?
 }
 
 model Vendor {
