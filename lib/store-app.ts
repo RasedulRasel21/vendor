@@ -54,6 +54,8 @@ export function askForPayout(vendorId: string, actor: string) {
 
 export type StripeStatus = {
   available: boolean;
+  // Whether the store can also send PayPal payouts automatically.
+  paypal?: boolean;
   accountId?: string | null;
   detailsSubmitted?: boolean;
   transfersActive?: boolean;

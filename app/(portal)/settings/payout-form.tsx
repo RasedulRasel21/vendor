@@ -41,7 +41,15 @@ function Field({
 }
 
 // Starts closed, so vendors don't retype payout details by accident.
-export function PayoutForm({ hasPayout, hasPendingRequest }: { hasPayout: boolean; hasPendingRequest: boolean }) {
+export function PayoutForm({
+  hasPayout,
+  hasPendingRequest,
+  paypalAutomatic,
+}: {
+  hasPayout: boolean;
+  hasPendingRequest: boolean;
+  paypalAutomatic: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const [method, setMethod] = useState<PayoutMethod>("BANK");
   const account = ACCOUNT_FIELD[method];
@@ -131,6 +139,13 @@ export function PayoutForm({ hasPayout, hasPendingRequest }: { hasPayout: boolea
           </p>
         )}
       </div>
+
+      {method === "PAYPAL" && paypalAutomatic && (
+        <p className="rounded-lg border border-primary-100 bg-primary-50 px-3 py-2 text-sm text-primary-700">
+          This store sends PayPal payouts automatically, so your money arrives at this address without
+          anyone having to transfer it by hand.
+        </p>
+      )}
 
       <p className="text-sm text-zinc-600">
         The store checks every payout change before it&apos;s used, and may contact you to confirm it.

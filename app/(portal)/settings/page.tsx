@@ -147,6 +147,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
               key={pendingRequest?.id ?? "no-request"}
               hasPayout={current.length > 0}
               hasPendingRequest={Boolean(pendingRequest)}
+              paypalAutomatic={Boolean(stripeInfo?.paypal)}
             />
           ) : (
             <p className="text-sm text-zinc-500">Only the account owner can change payout details.</p>
