@@ -45,15 +45,10 @@ model ShopSettings {
   labelAccount            String?
   labelApiKey             String?
   labelProvider           String?
-  payoutHoldDays          Int       @default(7)
   payoutMinimum           Decimal   @default(0) @db.Decimal(12, 2)
   payoutRequests          Boolean   @default(true)
   payoutSchedule          String    @default("MANUAL")
   refundKeepsCommission   Boolean   @default(false)
-  emailApiKey             String?
-  emailFrom               String?
-  emailProvider           String?
-  emailReplyTo            String?
   autoInvoices            Boolean   @default(false)
   businessAddress         String?
   businessName            String?
@@ -73,6 +68,11 @@ model ShopSettings {
   paypalMode              String?
   stripeAccount           String?
   stripeSecretKey         String?
+  payoutHoldUnit          String    @default("DAYS")
+  payoutHoldValue         Int       @default(7)
+  payoutMinimumEnabled    Boolean   @default(false)
+  shopEmail               String?
+  shopName                String?
 }
 
 model Vendor {
