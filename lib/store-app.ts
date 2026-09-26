@@ -293,3 +293,56 @@ export async function checkProductRules(
     return { problems: [] };
   }
 }
+
+export type VendorPermissions = {
+  canCreateProducts: boolean;
+  canSeeCustomerContact: boolean;
+  autoApproveProducts: boolean;
+};
+
+// Everything a vendor is allowed to do is decided by the merchant and kept in the store
+// app. When it can't be reached the portal assumes the ordinary case — able to work,
+// nothing auto-approved — because the app is the one that actually enforces anything
+// that matters.
+const ASSUMED: VendorPermissions = {
+  canCreateProducts: true,
+  canSeeCustomerContact: true,
+  autoApproveProducts: false,
+};
+
+async function permissionsCall(body: Record<string, unknown>) {
+  const config = bridge();
+  if (!config) return null;
+
+  try {
+    const response = await fetch(`${config.appUrl}/api/portal/vendor-permissions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-storevendor-secret": config.secret },
+      body: JSON.stringify(body),
+      cache: "no-store",
+    });
+    if (!response.ok) return null;
+    return (await response.json().catch(() => null)) as Record<string, unknown> | null;
+  } catch (error) {
+    console.error("Vendor permission request failed", error);
+    return null;
+  }
+}
+
+export async function vendorPermissions(vendorId: string): Promise<VendorPermissions> {
+  const result = await permissionsCall({ vendorId, intent: "permissions" });
+  if (!result) return ASSUMED;
+
+  return {
+    canCreateProducts: result.canCreateProducts !== false,
+    canSeeCustomerContact: result.canSeeCustomerContact !== false,
+    autoApproveProducts: result.autoApproveProducts === true,
+  };
+}
+
+// Told after a vendor submits. A trusted vendor's new product goes into the store there
+// and then; everyone else is simply waiting for the merchant, as before.
+export async function productSubmitted(vendorId: string, submissionId: string): Promise<boolean> {
+  const result = await permissionsCall({ vendorId, submissionId, intent: "submitted" });
+  return result?.approved === true;
+}

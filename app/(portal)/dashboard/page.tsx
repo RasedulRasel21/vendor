@@ -7,7 +7,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { db } from "@/lib/db";
 import { formatMoney } from "@/lib/money";
 import { requireVendorUser } from "@/lib/session";
-import { payoutSummary } from "@/lib/store-app";
+import { payoutSummary, vendorPermissions } from "@/lib/store-app";
 import { primaryButtonClass, secondaryButtonClass } from "@/lib/ui";
 
 export const metadata: Metadata = {
@@ -49,7 +49,7 @@ export default async function DashboardPage() {
     db.shopSettings.findUnique({ where: { shop: vendor.shop }, select: { currencyCode: true } }),
   ]);
 
-  const [ordersToShip, ordersStoreShips, payouts, lastPayout] = await Promise.all([
+  const [ordersToShip, ordersStoreShips, payouts, permissions, lastPayout] = await Promise.all([
     db.vendorOrder.count({
       where: { vendorId: vendor.id, status: { in: ["OPEN", "PARTIAL"] }, shippingMode: "VENDOR_SHIPS" },
     }),
@@ -57,6 +57,7 @@ export default async function DashboardPage() {
       where: { vendorId: vendor.id, status: { in: ["OPEN", "PARTIAL"] }, shippingMode: "STORE_SHIPS" },
     }),
     payoutSummary(vendor.id),
+    vendorPermissions(vendor.id),
     db.payout.findFirst({
       where: { vendorId: vendor.id, status: "PAID" },
       orderBy: { paidAt: "desc" },
@@ -167,9 +168,11 @@ export default async function DashboardPage() {
         title={firstName ? `Welcome back, ${firstName}` : "Welcome back"}
         description={`Everything happening with ${vendor.name} products.`}
         actions={
-          <Link href="/products/new" className={primaryButtonClass}>
-            Add product
-          </Link>
+          permissions.canCreateProducts ? (
+            <Link href="/products/new" className={primaryButtonClass}>
+              Add product
+            </Link>
+          ) : null
         }
       />
 
@@ -337,9 +340,11 @@ export default async function DashboardPage() {
             <p className="mx-auto mt-1 max-w-sm text-sm text-zinc-600">
               Add photos, prices and variants, then submit it. It goes live once the store approves it.
             </p>
-            <Link href="/products/new" className={`${primaryButtonClass} mt-5`}>
-              Add product
-            </Link>
+            {permissions.canCreateProducts && (
+              <Link href="/products/new" className={`${primaryButtonClass} mt-5`}>
+                Add product
+              </Link>
+            )}
           </div>
         )}
       </section>

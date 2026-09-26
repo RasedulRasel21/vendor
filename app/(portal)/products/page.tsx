@@ -8,6 +8,7 @@ import { db } from "@/lib/db";
 import { formatMoney } from "@/lib/money";
 import { SUBMISSION_STATUS, type SubmissionStatus } from "@/lib/product-status";
 import { requireVendorUser } from "@/lib/session";
+import { vendorPermissions } from "@/lib/store-app";
 import { primaryButtonClass, secondaryButtonClass } from "@/lib/ui";
 
 export const metadata: Metadata = {
@@ -24,6 +25,7 @@ export default async function ProductsPage({ searchParams }: PageProps<"/product
       ? (requestedStatus as SubmissionStatus)
       : undefined;
   const query = typeof q === "string" ? q.trim().slice(0, 100) : "";
+  const { canCreateProducts } = await vendorPermissions(user.vendorId);
 
   const [submissions, grouped, settings] = await Promise.all([
     db.productSubmission.findMany({
@@ -92,9 +94,11 @@ export default async function ProductsPage({ searchParams }: PageProps<"/product
             <a href="/products/export" download className={secondaryButtonClass}>
               Export
             </a>
-            <Link href="/products/new" className={primaryButtonClass}>
-              Add product
-            </Link>
+            {canCreateProducts && (
+              <Link href="/products/new" className={primaryButtonClass}>
+                Add product
+              </Link>
+            )}
           </div>
         }
       />
@@ -151,7 +155,8 @@ export default async function ProductsPage({ searchParams }: PageProps<"/product
                 Clear search
               </Link>
             ) : (
-              !status && (
+              !status &&
+              canCreateProducts && (
                 <Link href="/products/new" className={`${primaryButtonClass} mt-5`}>
                   Add product
                 </Link>

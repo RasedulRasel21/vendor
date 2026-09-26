@@ -12,7 +12,7 @@ import {
   type ProductErrors,
 } from "@/lib/product-validation";
 import { requireVendorUser } from "@/lib/session";
-import { checkProductRules } from "@/lib/store-app";
+import { checkProductRules, productSubmitted, vendorPermissions } from "@/lib/store-app";
 
 export type ProductEditorState = {
   errors?: ProductErrors;
@@ -39,6 +39,14 @@ export async function saveProduct(
   if (submissionId && !existing) return { errors: { form: "This product wasn't found." } };
 
   const isLive = existing?.status === "APPROVED";
+
+  // Some vendors are allowed to restock and edit but not to add anything new.
+  if (!existing) {
+    const { canCreateProducts } = await vendorPermissions(user.vendorId);
+    if (!canCreateProducts) {
+      return { errors: { form: "This store isn't taking new products from you at the moment. You can still edit the ones you have." } };
+    }
+  }
 
   // Submitting is the moment the store's own rules apply. Saving a draft never does:
   // half-finished work is the point of a draft.
@@ -91,8 +99,14 @@ export async function saveProduct(
         updatedAt: now,
       },
     });
-    if (submit) await logActivity(user.vendorId, user.id, "product.submitted", id, fields.title);
-    redirect(`/products/${id}?saved=${submit ? "submitted" : "draft"}`);
+    if (submit) {
+      await logActivity(user.vendorId, user.id, "product.submitted", id, fields.title);
+      // A vendor the store trusts skips the queue: the app puts it in the store and tells
+      // us so, and anyone else is simply waiting to be reviewed.
+      const live = await productSubmitted(user.vendorId, id);
+      redirect(`/products/${id}?saved=${live ? "live" : "submitted"}`);
+    }
+    redirect(`/products/${id}?saved=draft`);
   }
 
   if (isLive) {
@@ -122,6 +136,9 @@ export async function saveProduct(
   });
   if (submit && existing.status !== "PENDING") {
     await logActivity(user.vendorId, user.id, "product.submitted", existing.id, fields.title);
+    if (await productSubmitted(user.vendorId, existing.id)) {
+      redirect(`/products/${existing.id}?saved=live`);
+    }
   }
 
   redirect(`/products/${existing.id}?saved=${existing.status === "PENDING" ? "updated" : submit ? "submitted" : "draft"}`);

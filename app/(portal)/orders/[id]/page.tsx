@@ -10,6 +10,7 @@ import { PageHeader } from "@/components/portal/page-header";
 import { ProductThumb } from "@/components/portal/product-thumb";
 import { carrierOptions } from "@/lib/carriers";
 import { db } from "@/lib/db";
+import { vendorPermissions } from "@/lib/store-app";
 import { formatMoney } from "@/lib/money";
 import { shipDeadline } from "@/lib/deadline";
 import { issueReasonLabel } from "@/lib/order-issues";
@@ -74,6 +75,9 @@ export default async function OrderPage({ params }: PageProps<"/orders/[id]">) {
 
   const currency = order.currencyCode;
   const storeShips = order.shippingMode === "STORE_SHIPS";
+  // Some stores keep the customer's phone number to themselves; the address still comes
+  // through, because the parcel has to get there.
+  const { canSeeCustomerContact: canSeeContact } = await vendorPermissions(user.vendorId);
   const isRefunded = Number(order.refunded) > 0;
   const payable = Number(order.earnings) - Number(order.refundedEarnings);
   const isPickup = ["PICK_UP", "RETAIL"].includes(order.deliveryMethod ?? "");
@@ -362,8 +366,14 @@ export default async function OrderPage({ params }: PageProps<"/orders/[id]">) {
                     {line}
                   </span>
                 ))}
-                {(address?.phone ?? order.customerPhone) && (
+                {canSeeContact && (address?.phone ?? order.customerPhone) && (
                   <span className="mt-2 block text-zinc-600">{address?.phone ?? order.customerPhone}</span>
+                )}
+                {!canSeeContact && (
+                  <span className="mt-2 block text-zinc-500">
+                    The store keeps the customer&apos;s phone number. Anything you need to ask them, ask the
+                    store.
+                  </span>
                 )}
               </address>
             ) : (

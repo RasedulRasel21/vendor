@@ -21,6 +21,7 @@ const SAVED_MESSAGES: Record<string, string> = {
   updated: "Changes saved. The store sees them when they review this product.",
   changes: "Changes sent to the store for approval.",
   copied: "Here's your copy. It's a draft until you submit it.",
+  live: "That's live in the store. This shop lets you publish without waiting.",
 };
 
 const PAGE_ERRORS: Record<string, string> = {
