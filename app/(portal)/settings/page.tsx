@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { Card } from "@/components/editor/card";
 import { PageHeader } from "@/components/portal/page-header";
 import { db } from "@/lib/db";
@@ -10,6 +11,7 @@ import { primaryButtonClass, secondaryButtonClass } from "@/lib/ui";
 import { ContactForm } from "./contact-form";
 import { PayoutForm } from "./payout-form";
 import { ProfileForm } from "./profile-form";
+import { TeamCard, type Teammate } from "./team-card";
 import { TaxForm } from "./tax-form";
 import type { TaxInfo } from "@/lib/tax";
 
@@ -54,6 +56,21 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
         : null;
   const stripe = await stripeStatus(vendor.id);
   const stripeInfo = "error" in stripe ? null : stripe;
+
+  // The address this portal is actually being used on, so an invite link is one that
+  // works rather than one built from a guess.
+  const head = await headers();
+  const host = head.get("x-forwarded-host") ?? head.get("host") ?? "";
+  const origin = host ? `${head.get("x-forwarded-proto") ?? "https"}://${host}` : "";
+
+  const team = await db.vendorUser.findMany({
+    where: { vendorId: vendor.id },
+    orderBy: [{ role: "asc" }, { createdAt: "asc" }],
+    select: {
+      id: true, email: true, name: true, role: true, status: true,
+      lastLoginAt: true, inviteExpiresAt: true,
+    },
+  });
 
   const [pendingRequest, latestReviewed] = await Promise.all([
     db.vendorChangeRequest.findFirst({
@@ -106,6 +123,29 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
           }}
         />
       </Card>
+
+      {user.role === "OWNER" && (
+        <Card
+          title="Your team"
+          description="People who can sign in and work on this shop with you."
+        >
+          <TeamCard
+            currentUserId={user.id}
+            origin={origin}
+            team={team.map(
+              (member): Teammate => ({
+                id: member.id,
+                email: member.email,
+                name: member.name,
+                role: member.role,
+                status: member.status,
+                lastLoginAt: member.lastLoginAt ? dateFormat.format(member.lastLoginAt) : null,
+                inviteExpired: Boolean(member.inviteExpiresAt && member.inviteExpiresAt < new Date()),
+              }),
+            )}
+          />
+        </Card>
+      )}
 
       <Card title="Contact details" description="Changes save straight away.">
         <ContactForm
