@@ -264,3 +264,32 @@ export function sendApplication(
     elapsedMs: meta.elapsedMs,
   });
 }
+
+// The store's own rules about what a product needs. Asked at the moment a vendor
+// submits, so they're told what this shop wants instead of having it sent back. The
+// rules live in the store app and are applied there, so the vendor and the merchant are
+// never looking at two different versions of them.
+export async function checkProductRules(
+  vendorId: string,
+  submissionId: string | null,
+  product: { title: string; descriptionHtml: string; productType: string; imageUrls: string[] },
+): Promise<{ problems: string[] }> {
+  const config = bridge();
+  // Without the bridge there's nothing to check against; a vendor shouldn't be stopped
+  // from working because a setting is missing on the server.
+  if (!config) return { problems: [] };
+
+  try {
+    const response = await fetch(`${config.appUrl}/api/portal/product-rules`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-storevendor-secret": config.secret },
+      body: JSON.stringify({ vendorId, submissionId, product }),
+      cache: "no-store",
+    });
+    const result = (await response.json().catch(() => null)) as { problems?: string[] } | null;
+    return { problems: response.ok && Array.isArray(result?.problems) ? result.problems : [] };
+  } catch (error) {
+    console.error("Product rule check failed", error);
+    return { problems: [] };
+  }
+}

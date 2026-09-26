@@ -84,6 +84,11 @@ model ShopSettings {
   applyOpen               Boolean   @default(true)
   applyTermsUrl           String?
   shopDomain              String?
+  bannedWords             String[]
+  maxProductsPerVendor    Int       @default(0)
+  minProductImages        Int       @default(0)
+  requireDescription      Boolean   @default(false)
+  requireProductType      Boolean   @default(false)
 }
 
 model Vendor {

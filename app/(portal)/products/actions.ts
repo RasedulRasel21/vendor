@@ -12,6 +12,7 @@ import {
   type ProductErrors,
 } from "@/lib/product-validation";
 import { requireVendorUser } from "@/lib/session";
+import { checkProductRules } from "@/lib/store-app";
 
 export type ProductEditorState = {
   errors?: ProductErrors;
@@ -38,6 +39,18 @@ export async function saveProduct(
   if (submissionId && !existing) return { errors: { form: "This product wasn't found." } };
 
   const isLive = existing?.status === "APPROVED";
+
+  // Submitting is the moment the store's own rules apply. Saving a draft never does:
+  // half-finished work is the point of a draft.
+  if (submit) {
+    const { problems } = await checkProductRules(user.vendorId, existing?.id ?? null, {
+      title: draft.title,
+      descriptionHtml: draft.descriptionHtml,
+      productType: draft.productType,
+      imageUrls: draft.imageUrls,
+    });
+    if (problems.length) return { errors: { form: problems.join(" ") } };
+  }
   // Changes to a live product always go for review, so they're validated as a submission.
   const result = validateProduct(draft, { forSubmit: submit || isLive });
   if ("errors" in result) return { errors: result.errors };
