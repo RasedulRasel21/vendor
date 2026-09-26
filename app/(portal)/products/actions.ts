@@ -136,3 +136,74 @@ function logActivity(vendorId: string, userId: string, action: string, submissio
     },
   });
 }
+
+// A copy to work from, always as a fresh draft: nothing about the original changes, and
+// the copy has no history in the store — no product id, no review notes, no pending edit.
+export async function duplicateProduct(submissionId: string) {
+  const user = await requireVendorUser();
+
+  const original = await db.productSubmission.findFirst({
+    where: { id: submissionId, vendorId: user.vendorId },
+  });
+  if (!original) redirect("/products");
+
+  const id = randomUUID();
+  const now = new Date();
+
+  await db.productSubmission.create({
+    data: {
+      id,
+      shop: original.shop,
+      vendorId: user.vendorId,
+      submittedById: user.id,
+      // Named so it's obvious which is which in a list of products.
+      title: `${original.title} (copy)`.slice(0, 255),
+      descriptionHtml: original.descriptionHtml,
+      description: original.description,
+      productType: original.productType,
+      options: (original.options ?? Prisma.DbNull) as Prisma.InputJsonValue,
+      variants: (original.variants ?? Prisma.DbNull) as Prisma.InputJsonValue,
+      trackInventory: original.trackInventory,
+      collectionIds: original.collectionIds,
+      tags: original.tags,
+      seoTitle: original.seoTitle,
+      seoDescription: original.seoDescription,
+      // The handle and the barcode belong to the original product, not to a copy of it.
+      handle: null,
+      barcode: null,
+      sku: original.sku,
+      price: original.price,
+      compareAtPrice: original.compareAtPrice,
+      inventoryQuantity: original.inventoryQuantity,
+      imageUrls: original.imageUrls,
+      status: "DRAFT",
+      submittedAt: null,
+      updatedAt: now,
+    },
+  });
+
+  revalidatePath("/products");
+  redirect(`/products/${id}?saved=copied`);
+}
+
+// Only a vendor's own drafts and products the store sent back can be thrown away here. A
+// product awaiting approval is in front of the store, and one that's live is in the shop:
+// neither is the vendor's alone to delete.
+export async function deleteProduct(submissionId: string) {
+  const user = await requireVendorUser();
+
+  const product = await db.productSubmission.findFirst({
+    where: { id: submissionId, vendorId: user.vendorId },
+    select: { id: true, title: true, status: true },
+  });
+  if (!product) redirect("/products");
+  if (product.status !== "DRAFT" && product.status !== "REJECTED") {
+    redirect(`/products/${submissionId}?error=cannot-delete`);
+  }
+
+  await db.productSubmission.delete({ where: { id: product.id } });
+  await logActivity(user.vendorId, user.id, "product.deleted", product.id, product.title);
+
+  revalidatePath("/products");
+  redirect("/products?saved=deleted");
+}

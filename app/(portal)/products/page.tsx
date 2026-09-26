@@ -18,7 +18,7 @@ const dateFormat = new Intl.DateTimeFormat("en", { dateStyle: "medium" });
 
 export default async function ProductsPage({ searchParams }: PageProps<"/products">) {
   const user = await requireVendorUser();
-  const { status: requestedStatus, q } = await searchParams;
+  const { status: requestedStatus, q, saved } = await searchParams;
   const status =
     typeof requestedStatus === "string" && requestedStatus in SUBMISSION_STATUS
       ? (requestedStatus as SubmissionStatus)
@@ -71,6 +71,15 @@ export default async function ProductsPage({ searchParams }: PageProps<"/product
 
   return (
     <div>
+      {saved === "deleted" && (
+        <p
+          role="status"
+          className="mb-6 rounded-xl border border-primary-100 bg-primary-50 px-4 py-3 text-sm text-primary-700"
+        >
+          Product deleted.
+        </p>
+      )}
+
       <PageHeader
         title="Products"
         description="Everything you've added, from drafts to products live in the store."

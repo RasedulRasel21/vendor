@@ -8,6 +8,7 @@ import { draftFromSubmission } from "@/lib/product-draft";
 import { requireVendorUser } from "@/lib/session";
 import { secondaryButtonClass } from "@/lib/ui";
 import { discardPendingChanges } from "../actions";
+import { ProductActions } from "./product-actions";
 import { ProductEditor } from "../product-editor";
 
 export const metadata: Metadata = {
@@ -19,6 +20,11 @@ const SAVED_MESSAGES: Record<string, string> = {
   submitted: "Submitted for approval. The store will review it soon.",
   updated: "Changes saved. The store sees them when they review this product.",
   changes: "Changes sent to the store for approval.",
+  copied: "Here's your copy. It's a draft until you submit it.",
+};
+
+const PAGE_ERRORS: Record<string, string> = {
+  "cannot-delete": "That one can't be deleted from here.",
 };
 
 const dateFormat = new Intl.DateTimeFormat("en", { dateStyle: "medium" });
@@ -26,7 +32,7 @@ const dateFormat = new Intl.DateTimeFormat("en", { dateStyle: "medium" });
 export default async function ProductPage({ params, searchParams }: PageProps<"/products/[id]">) {
   const user = await requireVendorUser();
   const { id } = await params;
-  const { saved } = await searchParams;
+  const { saved, error } = await searchParams;
 
   const [submission, settings, collections] = await Promise.all([
     db.productSubmission.findFirst({ where: { id, vendorId: user.vendorId } }),
@@ -46,6 +52,7 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
     pendingDraft ? { ...submission, ...pendingDraft } : submission,
   );
   const savedMessage = typeof saved === "string" ? SAVED_MESSAGES[saved] : undefined;
+  const errorMessage = typeof error === "string" ? PAGE_ERRORS[error] : undefined;
   const mode = isLive ? "live" : submission.status === "PENDING" ? "pending" : "draft";
 
   const discard = discardPendingChanges.bind(null, submission.id);
@@ -65,6 +72,12 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
         >
           <CircleCheck className="size-4 shrink-0" />
           {savedMessage}
+        </p>
+      )}
+
+      {errorMessage && (
+        <p role="alert" className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          {errorMessage}
         </p>
       )}
 
@@ -123,6 +136,12 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
         currencyCode={settings?.currencyCode ?? "USD"}
         collections={collections}
         mode={mode}
+      />
+
+      <ProductActions
+        submissionId={submission.id}
+        canDelete={submission.status === "DRAFT" || submission.status === "REJECTED"}
+        status={submission.status}
       />
     </div>
   );
