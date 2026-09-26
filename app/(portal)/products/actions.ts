@@ -5,6 +5,7 @@ import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
+import { csvToProducts, MAX_CSV_BYTES } from "@/lib/product-csv";
 import {
   parseProductPayload,
   validateProduct,
@@ -206,4 +207,103 @@ export async function deleteProduct(submissionId: string) {
 
   revalidatePath("/products");
   redirect("/products?saved=deleted");
+}
+
+export type ImportState = {
+  created?: number;
+  updated?: number;
+  problems?: { line: number | null; product: string; message: string }[];
+  error?: string;
+};
+
+// A spreadsheet of products, turned into drafts. Nothing is ever submitted or published
+// by an import: everything lands as a draft for the vendor to look over.
+//
+// Rows that can't be read don't stop the ones that can. Whatever went wrong is listed
+// with its row number, and a product already here as a draft with the same title is
+// updated rather than added twice, so fixing the file and uploading it again doesn't
+// leave a trail of duplicates.
+export async function importProducts(
+  _previousState: ImportState,
+  formData: FormData,
+): Promise<ImportState> {
+  const user = await requireVendorUser();
+
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) return { error: "Choose a CSV file to upload." };
+  if (file.size > MAX_CSV_BYTES) {
+    return { error: `That file is ${Math.round(file.size / 1024)} KB. The most we can take is 2 MB.` };
+  }
+
+  const { products, problems } = csvToProducts(await file.text());
+  if (!products.length) {
+    return { problems, error: problems.length ? undefined : "Nothing in that file looked like a product." };
+  }
+
+  // Their existing drafts, so a second upload of the same file corrects rather than repeats.
+  const existing = await db.productSubmission.findMany({
+    where: { vendorId: user.vendorId, status: "DRAFT" },
+    select: { id: true, title: true },
+  });
+  const drafts = new Map(existing.map((row) => [row.title.trim().toLowerCase(), row.id]));
+
+  let created = 0;
+  let updated = 0;
+  const now = new Date();
+
+  for (const product of products) {
+    const checked = validateProduct(product.draft, { forSubmit: false });
+    if ("errors" in checked) {
+      const [field, message] = Object.entries(checked.errors)[0] ?? ["", "Something didn't look right."];
+      problems.push({
+        line: product.rows[0],
+        product: product.title,
+        message: field ? `${field}: ${message}` : message,
+      });
+      continue;
+    }
+
+    const values = {
+      title: checked.data.title,
+      descriptionHtml: checked.data.descriptionHtml,
+      productType: checked.data.productType,
+      tags: checked.data.tags,
+      collectionIds: checked.data.collectionIds,
+      trackInventory: checked.data.trackInventory,
+      seoTitle: checked.data.seoTitle,
+      seoDescription: checked.data.seoDescription,
+      handle: checked.data.handle,
+      imageUrls: checked.data.imageUrls,
+      options: checked.data.options as unknown as Prisma.InputJsonValue,
+      variants: checked.data.variants as unknown as Prisma.InputJsonValue,
+    };
+
+    const existingId = drafts.get(checked.data.title.trim().toLowerCase());
+    if (existingId) {
+      await db.productSubmission.update({ where: { id: existingId }, data: { ...values, updatedAt: now } });
+      updated += 1;
+    } else {
+      const id = randomUUID();
+      await db.productSubmission.create({
+        data: {
+          id,
+          shop: user.Vendor.shop,
+          vendorId: user.vendorId,
+          submittedById: user.id,
+          ...values,
+          status: "DRAFT",
+          updatedAt: now,
+        },
+      });
+      drafts.set(checked.data.title.trim().toLowerCase(), id);
+      created += 1;
+    }
+  }
+
+  if (created || updated) {
+    await logActivity(user.vendorId, user.id, "product.imported", "", `${created + updated} products`);
+    revalidatePath("/products");
+  }
+
+  return { created, updated, problems };
 }

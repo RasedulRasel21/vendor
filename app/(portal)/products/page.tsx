@@ -8,7 +8,7 @@ import { db } from "@/lib/db";
 import { formatMoney } from "@/lib/money";
 import { SUBMISSION_STATUS, type SubmissionStatus } from "@/lib/product-status";
 import { requireVendorUser } from "@/lib/session";
-import { primaryButtonClass } from "@/lib/ui";
+import { primaryButtonClass, secondaryButtonClass } from "@/lib/ui";
 
 export const metadata: Metadata = {
   title: "Products · StoreVendor",
@@ -84,9 +84,18 @@ export default async function ProductsPage({ searchParams }: PageProps<"/product
         title="Products"
         description="Everything you've added, from drafts to products live in the store."
         actions={
-          <Link href="/products/new" className={primaryButtonClass}>
-            Add product
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            <Link href="/products/import" className={secondaryButtonClass}>
+              Import
+            </Link>
+            {/* A file to save, not a page to open: Link would navigate instead of downloading. */}
+            <a href="/products/export" download className={secondaryButtonClass}>
+              Export
+            </a>
+            <Link href="/products/new" className={primaryButtonClass}>
+              Add product
+            </Link>
+          </div>
         }
       />
 
