@@ -19,8 +19,9 @@ function safeFileName(name: string) {
   return cleaned.slice(-80) || "image";
 }
 
-// Uploads images straight from the browser to the vendor's Blob folder.
-export function useImageUploads(vendorId: string) {
+// Uploads images straight from the browser to the vendor's Blob folder. Product images by
+// default; anywhere else under the vendor's folder by passing one in.
+export function useImageUploads(vendorId: string, folderFor = vendorImageFolder) {
   const [pending, setPending] = useState<PendingUpload[]>([]);
 
   const updatePending = (id: string, patch: Partial<PendingUpload>) =>
@@ -29,7 +30,7 @@ export function useImageUploads(vendorId: string) {
   const dismiss = (id: string) => setPending((current) => current.filter((item) => item.id !== id));
 
   const uploadFiles = async (files: File[], onUploaded: (file: MediaFile) => void) => {
-    const folder = vendorImageFolder(vendorId);
+    const folder = folderFor(vendorId);
 
     await Promise.all(
       files.map(async (file) => {

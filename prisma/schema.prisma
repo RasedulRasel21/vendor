@@ -83,6 +83,7 @@ model ShopSettings {
   applyIntro              String?
   applyOpen               Boolean   @default(true)
   applyTermsUrl           String?
+  shopDomain              String?
 }
 
 model Vendor {
@@ -118,6 +119,11 @@ model Vendor {
   applicantHash       String?
   application         Json?
   appliedAt           DateTime?
+  bannerUrl           String?
+  bio                 String?
+  logoUrl             String?
+  returnPolicy        String?
+  shippingPolicy      String?
   CommissionInvoice   CommissionInvoice[]
   LedgerEntry         LedgerEntry[]
   OrderLineVendor     OrderLineVendor[]

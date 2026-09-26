@@ -7,6 +7,7 @@ import { COUNTRY_CODES } from "@/lib/countries";
 import { db } from "@/lib/db";
 import { validatePayout } from "@/lib/payout";
 import { requireVendorUser } from "@/lib/session";
+import { isUploadedImageUrl } from "@/lib/uploads";
 import { saveTaxDetails, stripeOnboardingUrl, stripeStatus } from "@/lib/store-app";
 import { redirect } from "next/navigation";
 
@@ -220,4 +221,67 @@ export async function cancelPayoutRequest() {
   }
 
   revalidatePath("/settings");
+}
+
+// How the shop looks to customers on its own page in the store. These aren't sensitive,
+// so they save straight away like contact details — but they are public, so the store can
+// see everything here on the vendor's page in their admin.
+const PROFILE_LIMITS = { bio: 1000, returnPolicy: 2000, shippingPolicy: 2000 };
+
+export async function saveProfile(
+  _previousState: SettingsFormState,
+  formData: FormData,
+): Promise<SettingsFormState> {
+  const user = await requireVendorUser();
+
+  const errors: Record<string, string> = {};
+  const text = (name: keyof typeof PROFILE_LIMITS) => {
+    const value = field(formData, name);
+    if (value.length > PROFILE_LIMITS[name]) {
+      errors[name] = `Keep this to ${PROFILE_LIMITS[name].toLocaleString("en-GB")} characters or fewer.`;
+    }
+    return value;
+  };
+
+  const bio = text("bio");
+  const returnPolicy = text("returnPolicy");
+  const shippingPolicy = text("shippingPolicy");
+
+  // Only images we hosted: these are shown on the shop's storefront, so an address typed
+  // in by hand could point it anywhere.
+  const image = (name: "logoUrl" | "bannerUrl") => {
+    const value = field(formData, name);
+    if (value && !isUploadedImageUrl(value)) {
+      errors[name] = "Upload an image rather than pasting a link.";
+      return null;
+    }
+    return value || null;
+  };
+
+  const logoUrl = image("logoUrl");
+  const bannerUrl = image("bannerUrl");
+
+  if (Object.keys(errors).length) return { errors };
+
+  await db.vendor.update({
+    where: { id: user.vendorId },
+    data: {
+      logoUrl,
+      bannerUrl,
+      bio: bio || null,
+      returnPolicy: returnPolicy || null,
+      shippingPolicy: shippingPolicy || null,
+    },
+  });
+  await db.vendorActivity.create({
+    data: {
+      id: randomUUID(),
+      vendorId: user.vendorId,
+      action: "vendor.profile_updated",
+      actor: `vendor_user:${user.id}`,
+    },
+  });
+
+  revalidatePath("/settings");
+  return { ok: true };
 }

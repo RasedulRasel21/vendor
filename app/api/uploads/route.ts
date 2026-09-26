@@ -1,7 +1,7 @@
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { NextResponse } from "next/server";
 import { getCurrentVendorUser } from "@/lib/session";
-import { IMAGE_CONTENT_TYPES, MAX_IMAGE_BYTES, vendorImageFolder } from "@/lib/uploads";
+import { IMAGE_CONTENT_TYPES, MAX_IMAGE_BYTES, vendorFolder } from "@/lib/uploads";
 
 const TOKEN_MINUTES = 10;
 
@@ -17,7 +17,8 @@ export async function POST(request: Request) {
       onBeforeGenerateToken: async (pathname) => {
         const user = await getCurrentVendorUser();
         if (!user) throw new Error("Sign in to upload images");
-        if (!pathname.startsWith(vendorImageFolder(user.vendorId))) {
+        // Their own folder, whichever part of it: products, or their shop's profile.
+        if (!pathname.startsWith(vendorFolder(user.vendorId))) {
           throw new Error("Images can only be uploaded to your own folder");
         }
 

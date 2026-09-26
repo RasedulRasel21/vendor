@@ -9,6 +9,7 @@ import { stripeStatus } from "@/lib/store-app";
 import { primaryButtonClass, secondaryButtonClass } from "@/lib/ui";
 import { ContactForm } from "./contact-form";
 import { PayoutForm } from "./payout-form";
+import { ProfileForm } from "./profile-form";
 import { TaxForm } from "./tax-form";
 import type { TaxInfo } from "@/lib/tax";
 
@@ -87,6 +88,22 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
             { label: "Business name", value: vendor.name },
             { label: "Sign-in email", value: user.email },
           ]}
+        />
+      </Card>
+
+      <Card
+        title="Your shop page"
+        description="What customers see on your page in the store. Changes save straight away."
+      >
+        <ProfileForm
+          vendorId={vendor.id}
+          current={{
+            logoUrl: vendor.logoUrl,
+            bannerUrl: vendor.bannerUrl,
+            bio: vendor.bio ?? "",
+            returnPolicy: vendor.returnPolicy ?? "",
+            shippingPolicy: vendor.shippingPolicy ?? "",
+          }}
         />
       </Card>
 
