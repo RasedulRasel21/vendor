@@ -40,6 +40,21 @@ export function ImportForm() {
           {fileName && <p className="mt-1.5 text-sm text-zinc-500">{fileName}</p>}
         </div>
 
+        <label className="flex items-start gap-3 text-sm text-zinc-700">
+          <input
+            type="checkbox"
+            name="submit"
+            className="mt-0.5 size-4 rounded border-zinc-300 text-primary-600 focus:ring-primary-500"
+          />
+          <span>
+            Send these to the store for approval instead of keeping them as drafts.
+            <span className="mt-0.5 block text-zinc-500">
+              Every product then has to be complete — a price on each variant, and whatever
+              else the store asks for.
+            </span>
+          </span>
+        </label>
+
         <div className="flex flex-wrap items-center gap-3">
           <button type="submit" disabled={importing} className={primaryButtonClass}>
             <Upload className="size-4" aria-hidden />
@@ -62,11 +77,15 @@ export function ImportForm() {
               <span>
                 {state.created ? `${state.created} added` : ""}
                 {state.created && state.updated ? ", " : ""}
-                {state.updated ? `${state.updated} updated` : ""} — all as drafts.{" "}
-                <Link href="/products?status=DRAFT" className="font-semibold underline underline-offset-4">
-                  Look them over
-                </Link>{" "}
-                before you submit them.
+                {state.updated ? `${state.updated} updated` : ""}
+                {state.submitted ? " — sent to the store for approval." : " — all as drafts."}{" "}
+                <Link
+                  href={state.submitted ? "/products?status=PENDING" : "/products?status=DRAFT"}
+                  className="font-semibold underline underline-offset-4"
+                >
+                  {state.submitted ? "See them" : "Look them over"}
+                </Link>
+                {state.submitted ? "" : " before you submit them."}
               </span>
             </p>
           ) : (

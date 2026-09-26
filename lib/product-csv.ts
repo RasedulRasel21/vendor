@@ -39,6 +39,30 @@ export const COLUMNS = [
   "SEO Description",
 ] as const;
 
+// Shopify has written product CSVs two ways. The classic export calls a price "Variant
+// Price"; the newer template in the admin calls it "Price". A vendor shouldn't have to
+// know which one they've got, so every column is looked up under both names.
+const ALIASES: Record<string, string[]> = {
+  Handle: ["Handle", "URL handle"],
+  "Body (HTML)": ["Body (HTML)", "Description"],
+  "Variant SKU": ["Variant SKU", "SKU"],
+  "Variant Barcode": ["Variant Barcode", "Barcode"],
+  "Variant Price": ["Variant Price", "Price"],
+  "Variant Compare At Price": ["Variant Compare At Price", "Compare-at price"],
+  "Variant Inventory Qty": ["Variant Inventory Qty", "Inventory quantity"],
+  "Variant Cost": ["Variant Cost", "Cost per item"],
+  "Variant Taxable": ["Variant Taxable", "Charge tax"],
+  "Variant Requires Shipping": ["Variant Requires Shipping", "Requires shipping"],
+  "Variant Inventory Policy": ["Variant Inventory Policy", "Continue selling when out of stock"],
+  "Variant Weight": ["Variant Weight"],
+  "Variant Grams": ["Variant Grams", "Weight value (grams)"],
+  "Variant Weight Unit": ["Variant Weight Unit", "Weight unit for display"],
+  "Image Src": ["Image Src", "Product image URL"],
+  "Variant Image": ["Variant Image", "Variant image URL"],
+  "SEO Title": ["SEO Title", "SEO title"],
+  "SEO Description": ["SEO Description", "SEO description"],
+};
+
 export const MAX_CSV_BYTES = 2 * 1024 * 1024;
 export const MAX_ROWS = 2000;
 
@@ -116,7 +140,14 @@ export function toCsv(rows: (string | number | null | undefined)[][]): string {
 
 export type ImportProblem = { line: number | null; product: string; message: string };
 
-export type ParsedProduct = { key: string; title: string; draft: ProductDraft; rows: number[] };
+export type ParsedProduct = {
+  key: string;
+  title: string;
+  draft: ProductDraft;
+  rows: number[];
+  // Option names by position, remembered from the row that named them.
+  optionNames: string[];
+};
 
 const trimmed = (value: string | undefined) => (value ?? "").trim();
 
@@ -155,11 +186,16 @@ export function csvToProducts(text: string): { products: ParsedProduct[]; proble
   const header = rows[0].map((name) => name.trim());
   const index = new Map(header.map((name, i) => [name.toLowerCase(), i]));
   const at = (row: string[], column: string) => {
-    const i = index.get(column.toLowerCase());
-    return i === undefined ? "" : trimmed(row[i]);
+    for (const name of ALIASES[column] ?? [column]) {
+      const i = index.get(name.toLowerCase());
+      if (i !== undefined && trimmed(row[i]) !== "") return trimmed(row[i]);
+    }
+    return "";
   };
+  const hasColumn = (column: string) =>
+    (ALIASES[column] ?? [column]).some((name) => index.has(name.toLowerCase()));
 
-  if (!index.has("title") && !index.has("handle")) {
+  if (!index.has("title") && !hasColumn("Handle")) {
     return {
       products: [],
       problems: [
@@ -191,7 +227,7 @@ export function csvToProducts(text: string): { products: ParsedProduct[]; proble
         problems.push({ line, product: handle, message: "The first row for a product needs a Title." });
         return;
       }
-      product = { key, title, draft: { ...blankDraft(), title, handle }, rows: [] };
+      product = { key, title, draft: { ...blankDraft(), title, handle }, rows: [], optionNames: [] };
       byKey.set(key, product);
     }
     product.rows.push(line);
@@ -214,12 +250,20 @@ export function csvToProducts(text: string): { products: ParsedProduct[]; proble
     const image = at(row, "Image Src");
     if (image && !draft.imageUrls.includes(image)) draft.imageUrls.push(image);
 
-    // Options are named once per product and given a value per variant.
+    // An option is named once, on the product's first row; every row after that carries
+    // only its value. So the name is remembered by position, and a later row asking for
+    // "Small" with no name still knows it means Size.
     const optionValues: Record<string, string> = {};
     for (let n = 1; n <= MAX_OPTIONS; n += 1) {
-      const name = at(row, `Option${n} Name`);
       const value = at(row, `Option${n} Value`);
-      if (!name || !value || name.toLowerCase() === "title") continue;
+      if (!value) continue;
+
+      // Shopify writes Title / Default Title for a product with no real options.
+      if (value.toLowerCase() === "default title") continue;
+
+      const name = at(row, `Option${n} Name`) || product.optionNames[n - 1];
+      if (!name) continue;
+      product.optionNames[n - 1] = name;
 
       let option = draft.options.find((o) => o.name.toLowerCase() === name.toLowerCase());
       if (!option) {
@@ -233,19 +277,38 @@ export function csvToProducts(text: string): { products: ParsedProduct[]; proble
     // A row with no variant detail at all is an extra image for the product, not a variant.
     const hasVariant =
       Object.keys(optionValues).length > 0 ||
-      ["Variant SKU", "Variant Price", "Variant Barcode", "Variant Inventory Qty"].some((column) => at(row, column));
+      ["Variant SKU", "Variant Price", "Variant Barcode", "Variant Inventory Qty", "Variant Grams", "Variant Weight"].some(
+        (column) => at(row, column),
+      );
     if (!hasVariant && draft.variants.length) return;
 
-    const weightUnit = WEIGHT_UNITS[at(row, "Variant Weight Unit").toLowerCase()] ?? "KILOGRAMS";
+    // Two ways of giving a weight: a number with a unit, or a number of grams. When it's
+    // grams, that's what it is — the file's "unit for display" doesn't change the value.
+    const grams = at(row, "Variant Grams");
+    const weight = at(row, "Variant Weight") || grams;
+    const weightUnit = grams
+      ? "GRAMS"
+      : (WEIGHT_UNITS[at(row, "Variant Weight Unit").toLowerCase()] ?? "KILOGRAMS");
+
+    const yes = (value: string) => /^(true|yes|1)$/i.test(value.trim());
+    const taxable = at(row, "Variant Taxable");
+    const shipping = at(row, "Variant Requires Shipping");
+
     const variant: VariantDraft = {
       ...emptyVariant(optionValues),
       price: at(row, "Variant Price"),
       compareAtPrice: at(row, "Variant Compare At Price"),
+      costPerItem: at(row, "Variant Cost"),
       sku: at(row, "Variant SKU"),
       barcode: at(row, "Variant Barcode"),
       inventoryQuantity: at(row, "Variant Inventory Qty"),
-      weight: at(row, "Variant Weight"),
-      weightUnit,
+      imageUrl: at(row, "Variant Image"),
+      // Shopify writes CONTINUE or DENY; anything else means the usual "stop selling".
+      continueSelling: /^continue$/i.test(at(row, "Variant Inventory Policy")),
+      taxable: taxable === "" ? true : yes(taxable),
+      requiresShipping: shipping === "" ? true : yes(shipping),
+      weight,
+      weightUnit: weightUnit as VariantDraft["weightUnit"],
     };
     draft.variants.push(variant);
   });

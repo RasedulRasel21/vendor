@@ -242,6 +242,7 @@ export async function deleteProduct(submissionId: string) {
 export type ImportState = {
   created?: number;
   updated?: number;
+  submitted?: number;
   problems?: { line: number | null; product: string; message: string }[];
   error?: string;
 };
@@ -258,6 +259,10 @@ export async function importProducts(
   formData: FormData,
 ): Promise<ImportState> {
   const user = await requireVendorUser();
+
+  // Drafts by default. Ticking the box puts them in front of the store instead, which
+  // means every product has to be complete enough to submit.
+  const forSubmit = formData.get("submit") === "on";
 
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) return { error: "Choose a CSV file to upload." };
@@ -279,10 +284,11 @@ export async function importProducts(
 
   let created = 0;
   let updated = 0;
+  let submitted = 0;
   const now = new Date();
 
   for (const product of products) {
-    const checked = validateProduct(product.draft, { forSubmit: false });
+    const checked = validateProduct(product.draft, { forSubmit });
     if ("errors" in checked) {
       const [field, message] = Object.entries(checked.errors)[0] ?? ["", "Something didn't look right."];
       problems.push({
@@ -308,10 +314,32 @@ export async function importProducts(
       variants: checked.data.variants as unknown as Prisma.InputJsonValue,
     };
 
+    if (forSubmit) {
+      const { problems: ruleProblems } = await checkProductRules(user.vendorId, null, {
+        title: checked.data.title,
+        descriptionHtml: checked.data.descriptionHtml ?? "",
+        productType: checked.data.productType ?? "",
+        imageUrls: checked.data.imageUrls,
+      });
+      if (ruleProblems.length) {
+        for (const message of ruleProblems) {
+          problems.push({ line: product.rows[0], product: product.title, message });
+        }
+        continue;
+      }
+    }
+
     const existingId = drafts.get(checked.data.title.trim().toLowerCase());
+    const status = forSubmit ? "PENDING" : "DRAFT";
+    const submittedAt = forSubmit ? now : null;
+
     if (existingId) {
-      await db.productSubmission.update({ where: { id: existingId }, data: { ...values, updatedAt: now } });
+      await db.productSubmission.update({
+        where: { id: existingId },
+        data: { ...values, status, submittedAt, updatedAt: now },
+      });
       updated += 1;
+      if (forSubmit) submitted += 1;
     } else {
       const id = randomUUID();
       await db.productSubmission.create({
@@ -321,12 +349,14 @@ export async function importProducts(
           vendorId: user.vendorId,
           submittedById: user.id,
           ...values,
-          status: "DRAFT",
+          status,
+          submittedAt,
           updatedAt: now,
         },
       });
       drafts.set(checked.data.title.trim().toLowerCase(), id);
       created += 1;
+      if (forSubmit) submitted += 1;
     }
   }
 
@@ -335,5 +365,5 @@ export async function importProducts(
     revalidatePath("/products");
   }
 
-  return { created, updated, problems };
+  return { created, updated, submitted, problems };
 }
