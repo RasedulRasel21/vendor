@@ -346,3 +346,48 @@ export async function productSubmitted(vendorId: string, submissionId: string): 
   const result = await permissionsCall({ vendorId, submissionId, intent: "submitted" });
   return result?.approved === true;
 }
+
+export type OwedAgreement = { id: string; version: number; title: string; body: string };
+
+// The store's terms. Written, versioned and recorded in the store app; the portal shows
+// them and passes back what was signed.
+async function agreementCall(body: Record<string, unknown>) {
+  const config = bridge();
+  if (!config) return null;
+
+  try {
+    const response = await fetch(`${config.appUrl}/api/portal/agreement`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-storevendor-secret": config.secret },
+      body: JSON.stringify(body),
+      cache: "no-store",
+    });
+    return (await response.json().catch(() => null)) as Record<string, unknown> | null;
+  } catch (error) {
+    console.error("Agreement request failed", error);
+    return null;
+  }
+}
+
+// What this vendor still has to agree to, or nothing. When the app can't be reached the
+// answer is nothing: a vendor shouldn't be locked out of their own work because a
+// server is down, and the store app blocks anything that actually matters anyway.
+export async function agreementOwed(vendorId: string): Promise<OwedAgreement | null> {
+  const result = await agreementCall({ vendorId, intent: "owed" });
+  return (result?.owed as OwedAgreement | undefined) ?? null;
+}
+
+export async function signAgreement(input: {
+  vendorId: string;
+  vendorUserId: string;
+  agreementId: string;
+  signedName: string;
+  email: string;
+  ip: string | null;
+}): Promise<{ ok: true } | { errors: Record<string, string> } | { error: string }> {
+  const result = await agreementCall({ ...input, intent: "accept" });
+  if (!result) return { error: "The store couldn't be reached. Try again in a moment." };
+  if (result.ok === true) return { ok: true };
+  if (result.errors) return { errors: result.errors as Record<string, string> };
+  return { error: (result.error as string) ?? "That couldn't be saved. Try again." };
+}
