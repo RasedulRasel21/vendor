@@ -50,6 +50,7 @@ const ALIASES: Record<string, string[]> = {
   "Variant Price": ["Variant Price", "Price"],
   "Variant Compare At Price": ["Variant Compare At Price", "Compare-at price"],
   "Variant Inventory Qty": ["Variant Inventory Qty", "Inventory quantity"],
+  "Variant Inventory Tracker": ["Variant Inventory Tracker", "Inventory tracker"],
   "Variant Cost": ["Variant Cost", "Cost per item"],
   "Variant Taxable": ["Variant Taxable", "Charge tax"],
   "Variant Requires Shipping": ["Variant Requires Shipping", "Requires shipping"],
@@ -291,6 +292,14 @@ export function csvToProducts(text: string): { products: ParsedProduct[]; proble
       : (WEIGHT_UNITS[at(row, "Variant Weight Unit").toLowerCase()] ?? "KILOGRAMS");
 
     const yes = (value: string) => /^(true|yes|1)$/i.test(value.trim());
+
+    // Shopify says who tracks the stock — "shopify", or blank for something it doesn't
+    // count, like a download. Blank means no quantity is expected, which matters: asking
+    // a vendor for the stock level of an ebook is nonsense. When the file has no such
+    // column at all, a quantity being present is taken as the answer.
+    const quantity = at(row, "Variant Inventory Qty");
+    const tracker = at(row, "Variant Inventory Tracker");
+    const tracked = hasColumn("Variant Inventory Tracker") ? tracker !== "" : quantity !== "";
     const taxable = at(row, "Variant Taxable");
     const shipping = at(row, "Variant Requires Shipping");
 
@@ -301,7 +310,8 @@ export function csvToProducts(text: string): { products: ParsedProduct[]; proble
       costPerItem: at(row, "Variant Cost"),
       sku: at(row, "Variant SKU"),
       barcode: at(row, "Variant Barcode"),
-      inventoryQuantity: at(row, "Variant Inventory Qty"),
+      inventoryQuantity: quantity,
+      trackInventory: tracked,
       imageUrl: at(row, "Variant Image"),
       // Shopify writes CONTINUE or DENY; anything else means the usual "stop selling".
       continueSelling: /^continue$/i.test(at(row, "Variant Inventory Policy")),

@@ -239,6 +239,32 @@ export async function deleteProduct(submissionId: string) {
   redirect("/products?saved=deleted");
 }
 
+// Validation keys are editor field paths like "variants.2.price". A vendor reading an
+// import report shouldn't have to decode them.
+const FIELD_NAMES: Record<string, string> = {
+  title: "Title",
+  descriptionHtml: "Description",
+  productType: "Product type",
+  handle: "URL handle",
+  price: "price",
+  compareAtPrice: "compare-at price",
+  sku: "SKU",
+  barcode: "barcode",
+  inventoryQuantity: "stock quantity",
+  weight: "weight",
+};
+
+function readable(field: string, message: string) {
+  if (!field) return message;
+
+  const parts = field.split(".");
+  if (parts[0] === "variants" && parts.length === 3) {
+    const which = Number(parts[1]) + 1;
+    return `Variant ${which}, ${FIELD_NAMES[parts[2]] ?? parts[2]}: ${message}`;
+  }
+  return `${FIELD_NAMES[field] ?? field}: ${message}`;
+}
+
 export type ImportState = {
   created?: number;
   updated?: number;
@@ -275,9 +301,11 @@ export async function importProducts(
     return { problems, error: problems.length ? undefined : "Nothing in that file looked like a product." };
   }
 
-  // Their existing drafts, so a second upload of the same file corrects rather than repeats.
+  // Anything of theirs that isn't live yet, so a second upload of the same file corrects
+  // rather than repeats. Something already on sale is left alone: changing that is an
+  // edit for the store to approve, not something an import should do quietly.
   const existing = await db.productSubmission.findMany({
-    where: { vendorId: user.vendorId, status: "DRAFT" },
+    where: { vendorId: user.vendorId, status: { in: ["DRAFT", "PENDING", "REJECTED"] } },
     select: { id: true, title: true },
   });
   const drafts = new Map(existing.map((row) => [row.title.trim().toLowerCase(), row.id]));
@@ -291,11 +319,7 @@ export async function importProducts(
     const checked = validateProduct(product.draft, { forSubmit });
     if ("errors" in checked) {
       const [field, message] = Object.entries(checked.errors)[0] ?? ["", "Something didn't look right."];
-      problems.push({
-        line: product.rows[0],
-        product: product.title,
-        message: field ? `${field}: ${message}` : message,
-      });
+      problems.push({ line: product.rows[0], product: product.title, message: readable(field, message) });
       continue;
     }
 
