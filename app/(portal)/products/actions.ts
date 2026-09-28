@@ -11,6 +11,7 @@ import {
   validateProduct,
   type ProductErrors,
 } from "@/lib/product-validation";
+import { notifyByEmail } from "@/lib/notify";
 import { requireVendorUser } from "@/lib/session";
 import { checkProductRules, productSubmitted, vendorPermissions } from "@/lib/store-app";
 
@@ -104,6 +105,10 @@ export async function saveProduct(
       // A vendor the store trusts skips the queue: the app puts it in the store and tells
       // us so, and anyone else is simply waiting to be reviewed.
       const live = await productSubmitted(user.vendorId, id);
+      // Waiting on the merchant, who has no reason to be looking at the app right now.
+      if (!live) {
+        await notifyByEmail({ intent: "product-submitted", vendorId: user.vendorId, submissionId: id });
+      }
       redirect(`/products/${id}?saved=${live ? "live" : "submitted"}`);
     }
     redirect(`/products/${id}?saved=draft`);
@@ -120,6 +125,12 @@ export async function saveProduct(
       },
     });
     await logActivity(user.vendorId, user.id, "product.changes_submitted", existing.id, fields.title);
+    await notifyByEmail({
+      intent: "product-submitted",
+      vendorId: user.vendorId,
+      submissionId: existing.id,
+      edit: true,
+    });
     redirect(`/products/${existing.id}?saved=changes`);
   }
 
@@ -139,6 +150,7 @@ export async function saveProduct(
     if (await productSubmitted(user.vendorId, existing.id)) {
       redirect(`/products/${existing.id}?saved=live`);
     }
+    await notifyByEmail({ intent: "product-submitted", vendorId: user.vendorId, submissionId: existing.id });
   }
 
   redirect(`/products/${existing.id}?saved=${existing.status === "PENDING" ? "updated" : submit ? "submitted" : "draft"}`);

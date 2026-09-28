@@ -2,12 +2,24 @@
 
 import { useActionState } from "react";
 import { inputClass, labelClass, primaryButtonClass } from "@/lib/ui";
-import { signIn, type SignInState } from "./actions";
+import { requestReset, type ForgotState } from "./actions";
 
-const initialState: SignInState = {};
+const initialState: ForgotState = {};
 
-export function LoginForm() {
-  const [state, formAction, pending] = useActionState(signIn, initialState);
+export function ForgotForm() {
+  const [state, formAction, pending] = useActionState(requestReset, initialState);
+
+  if (state.sent) {
+    return (
+      <div className="mt-8 rounded-lg border border-primary-200 bg-primary-50 px-4 py-3 text-sm text-primary-900">
+        <p className="font-medium">Check your email</p>
+        <p className="mt-1">
+          If {state.email} is an account here, a link to set a new password is on its way. It
+          works once and runs out in an hour.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <form action={formAction} className="mt-8 space-y-5">
@@ -32,27 +44,8 @@ export function LoginForm() {
         />
       </div>
 
-      <div>
-        <div className="flex items-baseline justify-between">
-          <label htmlFor="password" className={labelClass}>
-            Password
-          </label>
-          <a href="/forgot" className="mb-1.5 text-sm font-medium text-primary-700 hover:underline">
-            Forgotten it?
-          </a>
-        </div>
-        <input
-          id="password"
-          name="password"
-          type="password"
-          autoComplete="current-password"
-          required
-          className={`${inputClass} py-2.5`}
-        />
-      </div>
-
       <button type="submit" disabled={pending} className={`${primaryButtonClass} w-full py-2.5`}>
-        {pending ? "Signing in…" : "Sign in"}
+        {pending ? "Sending…" : "Send me a link"}
       </button>
     </form>
   );

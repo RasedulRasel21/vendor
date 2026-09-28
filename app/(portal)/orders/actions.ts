@@ -3,7 +3,8 @@
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { ISSUE_REASONS } from "@/lib/order-issues";
+import { ISSUE_REASONS, issueReasonLabel } from "@/lib/order-issues";
+import { notifyByEmail } from "@/lib/notify";
 import { requireVendorUser } from "@/lib/session";
 import { markCashCollected, requestFulfillment, requestReturnAction } from "@/lib/store-app";
 
@@ -222,6 +223,16 @@ export async function reportProblem(
       },
     }),
   ]);
+
+  // A customer is waiting on whatever this is, so the store hears about it now rather
+  // than the next time someone opens the app.
+  await notifyByEmail({
+    intent: "order-issue",
+    vendorId: user.vendorId,
+    vendorOrderId: order.id,
+    reason: issueReasonLabel(reason),
+    note: note || null,
+  });
 
   revalidatePath("/orders");
   revalidatePath(`/orders/${order.id}`);

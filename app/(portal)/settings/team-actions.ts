@@ -2,6 +2,8 @@
 
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
+import { notifyByEmail } from "@/lib/notify";
 import { db } from "@/lib/db";
 import { requireVendorUser } from "@/lib/session";
 import { createToken, hashToken } from "@/lib/tokens";
@@ -62,8 +64,26 @@ export async function inviteTeammate(_previousState: TeamState, formData: FormDa
     },
   });
 
+  await emailTheInvite(owner, email, invite);
+
   revalidatePath("/settings");
   return { invitePath: `/invite/${invite}`, invitedEmail: email };
+}
+
+// Sent as well as shown. The owner can still copy the link — useful when someone's email
+// is wrong, or they're sitting next to each other — but they no longer have to.
+async function emailTheInvite(owner: { vendorId: string; name: string | null }, email: string, token: string) {
+  const head = await headers();
+  const host = head.get("x-forwarded-host") ?? head.get("host") ?? "";
+  if (!host) return;
+
+  await notifyByEmail({
+    intent: "team-invite",
+    vendorId: owner.vendorId,
+    email,
+    url: `${head.get("x-forwarded-proto") ?? "https"}://${host}/invite/${token}`,
+    invitedBy: owner.name,
+  });
 }
 
 // A fresh link, which cancels the old one: the token is replaced, not added to.
@@ -86,6 +106,8 @@ export async function resendInvite(userId: string): Promise<TeamState> {
       updatedAt: new Date(),
     },
   });
+
+  await emailTheInvite(owner, member.email, invite);
 
   revalidatePath("/settings");
   return { invitePath: `/invite/${invite}`, invitedEmail: member.email };

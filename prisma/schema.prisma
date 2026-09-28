@@ -145,7 +145,7 @@ model Vendor {
   VendorChangeRequest       VendorChangeRequest[]
   VendorOrder               VendorOrder[]
   VendorProduct             VendorProduct[]
-  VendorShippingRate        VendorShippingRate[]
+  VendorShippingZone        VendorShippingZone[]
   VendorUser                VendorUser[]
 
   @@unique([shop, email])
@@ -203,6 +203,8 @@ model VendorUser {
   passwordHash        String?
   failedLoginAttempts Int              @default(0)
   lockedUntil         DateTime?
+  resetExpiresAt      DateTime?
+  resetTokenHash      String?          @unique
   VendorSession       VendorSession[]
   Vendor              Vendor           @relation(fields: [vendorId], references: [id], onDelete: Cascade)
 
@@ -581,17 +583,77 @@ model VendorAgreementAcceptance {
 }
 
 model VendorShippingRate {
-  id            String   @id
-  shop          String
-  vendorId      String
-  name          String
-  countryCodes  String[]
-  price         Decimal  @db.Decimal(12, 2)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime
-  maxOrderTotal Decimal? @db.Decimal(12, 2)
-  minOrderTotal Decimal? @db.Decimal(12, 2)
-  Vendor        Vendor   @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  id                 String             @id
+  name               String
+  price              Decimal            @db.Decimal(12, 2)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime
+  maxOrderTotal      Decimal?           @db.Decimal(12, 2)
+  minOrderTotal      Decimal?           @db.Decimal(12, 2)
+  zoneId             String
+  transitTime        String?
+  VendorShippingZone VendorShippingZone @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+
+  @@index([zoneId])
+}
+
+model ErrorEvent {
+  id          String    @id
+  source      String
+  context     String
+  fingerprint String    @unique
+  shop        String?
+  vendorId    String?
+  message     String
+  stack       String?
+  details     Json?
+  count       Int       @default(1)
+  resolvedAt  DateTime?
+  firstSeenAt DateTime  @default(now())
+  lastSeenAt  DateTime  @default(now())
+  alertedAt   DateTime?
+
+  @@index([lastSeenAt])
+  @@index([shop, lastSeenAt])
+}
+
+model PrivacyRequest {
+  id             String    @id
+  shop           String
+  type           String
+  customerId     String?
+  customerEmail  String?
+  requestId      String?
+  data           Json?
+  summary        String?
+  receivedAt     DateTime  @default(now())
+  completedAt    DateTime?
+  acknowledgedAt DateTime?
+
+  @@index([shop, receivedAt])
+}
+
+model UptimeCheck {
+  id        String   @id
+  target    String
+  ok        Boolean
+  ms        Int
+  detail    String?
+  checkedAt DateTime @default(now())
+
+  @@index([target, checkedAt])
+}
+
+model VendorShippingZone {
+  id                 String               @id
+  shop               String
+  vendorId           String
+  name               String
+  countryCodes       String[]
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime
+  VendorShippingRate VendorShippingRate[]
+  Vendor             Vendor               @relation(fields: [vendorId], references: [id], onDelete: Cascade)
 
   @@index([vendorId])
 }

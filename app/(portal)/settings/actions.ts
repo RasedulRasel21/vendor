@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { COUNTRY_CODES } from "@/lib/countries";
 import { db } from "@/lib/db";
 import { validatePayout } from "@/lib/payout";
+import { notifyByEmail } from "@/lib/notify";
 import { requireVendorUser } from "@/lib/session";
 import { isUploadedImageUrl } from "@/lib/uploads";
 import { saveTaxDetails, stripeOnboardingUrl, stripeStatus } from "@/lib/store-app";
@@ -167,6 +168,10 @@ async function filePayoutChange(user: VendorUser, requested: { method: string; d
       },
     }),
   ]);
+
+  // Nothing is paid to the new account until the merchant approves it, so they need to
+  // know it is sitting there.
+  await notifyByEmail({ intent: "change-requested", vendorId: vendor.id, changeId: requestId });
 }
 
 // Sends the vendor to Stripe's own onboarding, on the store's Stripe platform.
