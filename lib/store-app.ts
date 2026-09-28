@@ -1,3 +1,5 @@
+import { reportError } from "@/lib/report-error";
+
 // Used from server actions only: it carries the shared secret, so it must never reach the browser.
 function bridge() {
   const appUrl = process.env.STORE_APP_URL;
@@ -42,7 +44,7 @@ async function payoutsCall<T>(body: Record<string, string>): Promise<T | { error
     if (response.ok && result && !result.error) return result;
     return { error: result?.error ?? "The store couldn't be reached. Try again." };
   } catch (error) {
-    console.error("Payouts request failed", error);
+    await reportError(error, { context: "bridge:payouts" });
     return { error: "The store couldn't be reached. Try again in a moment." };
   }
 }
@@ -80,7 +82,7 @@ async function stripeCall<T>(body: Record<string, string>): Promise<T | { error:
     if (response.ok && result && !result.error) return result;
     return { error: result?.error ?? "The store couldn't reach Stripe. Try again." };
   } catch (error) {
-    console.error("Stripe request failed", error);
+    await reportError(error, { context: "bridge:stripe" });
     return { error: "The store couldn't be reached. Try again in a moment." };
   }
 }
@@ -120,7 +122,7 @@ export async function saveTaxDetails(
     if (result?.errors) return { errors: result.errors };
     return { error: result?.error ?? "The store couldn't save that. Try again." };
   } catch (error) {
-    console.error("Tax details request failed", error);
+    await reportError(error, { context: "bridge:tax" });
     return { error: "The store couldn't be reached. Try again in a moment." };
   }
 }
@@ -154,7 +156,7 @@ export async function requestReturnAction(input: {
     if (response.ok && result?.ok) return { ok: true, units: result.units, location: result.location };
     return { error: result?.error ?? "The store couldn't do that. Try again." };
   } catch (error) {
-    console.error("Return request failed", error);
+    await reportError(error, { context: "bridge:return" });
     return { error: "The store couldn't be reached. Try again in a moment." };
   }
 }
@@ -189,7 +191,7 @@ export async function requestFulfillment(input: {
     if (response.ok && result?.ok) return { ok: true };
     return { error: result?.error ?? "The store couldn't mark this shipped. Try again." };
   } catch (error) {
-    console.error("Fulfillment request failed", error);
+    await reportError(error, { context: "bridge:fulfill" });
     return { error: "The store couldn't be reached. Try again in a moment." };
   }
 }
@@ -242,7 +244,7 @@ async function applyCall<T>(body: Record<string, unknown>): Promise<T | { error:
     if (result?.errors) return result as T;
     return { error: result?.error ?? "The store couldn't be reached. Try again." };
   } catch (error) {
-    console.error("Application request failed", error);
+    await reportError(error, { context: "bridge:apply" });
     return { error: "The store couldn't be reached. Try again in a moment." };
   }
 }
@@ -289,7 +291,7 @@ export async function checkProductRules(
     const result = (await response.json().catch(() => null)) as { problems?: string[] } | null;
     return { problems: response.ok && Array.isArray(result?.problems) ? result.problems : [] };
   } catch (error) {
-    console.error("Product rule check failed", error);
+    await reportError(error, { context: "bridge:product-rules" });
     return { problems: [] };
   }
 }
@@ -324,7 +326,7 @@ async function permissionsCall(body: Record<string, unknown>) {
     if (!response.ok) return null;
     return (await response.json().catch(() => null)) as Record<string, unknown> | null;
   } catch (error) {
-    console.error("Vendor permission request failed", error);
+    await reportError(error, { context: "bridge:vendor-permissions" });
     return null;
   }
 }
@@ -364,7 +366,7 @@ async function agreementCall(body: Record<string, unknown>) {
     });
     return (await response.json().catch(() => null)) as Record<string, unknown> | null;
   } catch (error) {
-    console.error("Agreement request failed", error);
+    await reportError(error, { context: "bridge:agreement" });
     return null;
   }
 }
@@ -412,7 +414,7 @@ export async function markCashCollected(
     if (response.ok && result?.ok) return { ok: true };
     return { error: result?.error ?? "That couldn't be saved. Try again." };
   } catch (error) {
-    console.error("Cash collected request failed", error);
+    await reportError(error, { context: "bridge:cash" });
     return { error: "The store couldn't be reached. Try again in a moment." };
   }
 }
@@ -451,7 +453,7 @@ async function shippingCall(body: Record<string, unknown>) {
     });
     return (await response.json().catch(() => null)) as Record<string, unknown> | null;
   } catch (error) {
-    console.error("Shipping rates request failed", error);
+    await reportError(error, { context: "bridge:shipping" });
     return null;
   }
 }

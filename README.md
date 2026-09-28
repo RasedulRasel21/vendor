@@ -34,3 +34,15 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Knowing when something breaks
+
+The portal keeps no error log of its own. Anything that fails on the server — a page that
+threw, a server action, a call to the store app — goes through `lib/report-error.ts` to the
+store app's `/api/portal/error`, and lands in the one log the merchant already reads. Errors
+in the browser are sent the same way by `app/error.tsx`, through `/api/client-error`, which
+takes the vendor from their session rather than from the request.
+
+`GET /health` answers `200` when the database is reachable and `503` when it isn't. The
+store app checks it as part of its own health check, so pointing an uptime monitor at the
+store app covers this too.
