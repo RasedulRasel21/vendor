@@ -12,6 +12,8 @@ import { ContactForm } from "./contact-form";
 import { PayoutForm } from "./payout-form";
 import { ProfileForm } from "./profile-form";
 import { TeamCard, type Teammate } from "./team-card";
+import { ShippingForm } from "./shipping-form";
+import { shippingSettings } from "@/lib/store-app";
 import { TaxForm } from "./tax-form";
 import type { TaxInfo } from "@/lib/tax";
 
@@ -62,6 +64,8 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
   const head = await headers();
   const host = head.get("x-forwarded-host") ?? head.get("host") ?? "";
   const origin = host ? `${head.get("x-forwarded-proto") ?? "https"}://${host}` : "";
+
+  const shipping = await shippingSettings(vendor.id);
 
   const team = await db.vendorUser.findMany({
     where: { vendorId: vendor.id },
@@ -144,6 +148,15 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
               }),
             )}
           />
+        </Card>
+      )}
+
+      {shipping.enabled && (
+        <Card
+          title="What you charge to deliver"
+          description="Your own postage, added to the order when someone buys from you."
+        >
+          <ShippingForm rates={shipping.rates} currencyCode={shipping.currencyCode} />
         </Card>
       )}
 

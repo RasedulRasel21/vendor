@@ -416,3 +416,46 @@ export async function markCashCollected(
     return { error: "The store couldn't be reached. Try again in a moment." };
   }
 }
+
+export type VendorRate = { name: string; price: string; countryCodes: string[] };
+export type ShippingSettings = { enabled: boolean; currencyCode: string; rates: VendorRate[] };
+
+// What this vendor charges to deliver. The rates live with the store app because getting
+// them in front of a customer means writing a Shopify delivery profile.
+async function shippingCall(body: Record<string, unknown>) {
+  const config = bridge();
+  if (!config) return null;
+
+  try {
+    const response = await fetch(`${config.appUrl}/api/portal/shipping`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-storevendor-secret": config.secret },
+      body: JSON.stringify(body),
+      cache: "no-store",
+    });
+    return (await response.json().catch(() => null)) as Record<string, unknown> | null;
+  } catch (error) {
+    console.error("Shipping rates request failed", error);
+    return null;
+  }
+}
+
+export async function shippingSettings(vendorId: string): Promise<ShippingSettings> {
+  const result = await shippingCall({ vendorId, intent: "read" });
+  return {
+    enabled: result?.enabled === true,
+    currencyCode: (result?.currencyCode as string) ?? "USD",
+    rates: (result?.rates as VendorRate[]) ?? [],
+  };
+}
+
+export async function saveShippingRates(
+  vendorId: string,
+  rates: VendorRate[],
+): Promise<{ ok: true; warning?: string } | { errors: Record<string, string> } | { error: string }> {
+  const result = await shippingCall({ vendorId, intent: "save", rates });
+  if (!result) return { error: "The store couldn't be reached. Try again in a moment." };
+  if (result.errors) return { errors: result.errors as Record<string, string> };
+  if (result.ok === true) return { ok: true, warning: result.warning as string | undefined };
+  return { error: (result.error as string) ?? "That couldn't be saved." };
+}

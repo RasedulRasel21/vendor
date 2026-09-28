@@ -89,6 +89,7 @@ model ShopSettings {
   minProductImages        Int       @default(0)
   requireDescription      Boolean   @default(false)
   requireProductType      Boolean   @default(false)
+  vendorShippingRates     Boolean   @default(false)
 }
 
 model Vendor {
@@ -133,6 +134,7 @@ model Vendor {
   canCreateProducts         Boolean                     @default(true)
   canSeeCustomerContact     Boolean                     @default(true)
   productLimit              Int                         @default(0)
+  deliveryProfileId         String?
   CommissionInvoice         CommissionInvoice[]
   LedgerEntry               LedgerEntry[]
   OrderLineVendor           OrderLineVendor[]
@@ -143,6 +145,7 @@ model Vendor {
   VendorChangeRequest       VendorChangeRequest[]
   VendorOrder               VendorOrder[]
   VendorProduct             VendorProduct[]
+  VendorShippingRate        VendorShippingRate[]
   VendorUser                VendorUser[]
 
   @@unique([shop, email])
@@ -575,6 +578,20 @@ model VendorAgreementAcceptance {
 
   @@unique([agreementId, vendorId])
   @@index([shop, vendorId])
+}
+
+model VendorShippingRate {
+  id           String   @id
+  shop         String
+  vendorId     String
+  name         String
+  countryCodes String[]
+  price        Decimal  @db.Decimal(12, 2)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime
+  Vendor       Vendor   @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+
+  @@index([vendorId])
 }
 
 enum ShippingMode {
