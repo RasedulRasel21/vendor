@@ -379,6 +379,26 @@ export async function agreementOwed(vendorId: string): Promise<OwedAgreement | n
   return (result?.owed as OwedAgreement | undefined) ?? null;
 }
 
+export type SignedAgreement = {
+  id: string;
+  version: number;
+  title: string;
+  body: string;
+  publishedAt: string | null;
+  signedName: string;
+  signedEmail: string;
+  acceptedAt: string;
+  // Whether this is the one in force, or an older one kept for the record.
+  current: boolean;
+};
+
+// What this vendor has already signed, newest first. Nobody should have to take a
+// contract on trust because the page that showed it once has gone.
+export async function signedAgreements(vendorId: string): Promise<SignedAgreement[]> {
+  const result = await agreementCall({ vendorId, intent: "signed" });
+  return (result?.signed as SignedAgreement[] | undefined) ?? [];
+}
+
 export async function signAgreement(input: {
   vendorId: string;
   vendorUserId: string;

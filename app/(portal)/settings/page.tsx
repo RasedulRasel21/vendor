@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
+import Link from "next/link";
 import { Card } from "@/components/editor/card";
 import { PageHeader } from "@/components/portal/page-header";
 import { db } from "@/lib/db";
 import { payoutRows } from "@/lib/payout";
 import { requireVendorUser } from "@/lib/session";
 import { cancelPayoutRequest, startStripe, switchToStripe } from "./actions";
-import { stripeStatus } from "@/lib/store-app";
+import { signedAgreements, stripeStatus } from "@/lib/store-app";
 import { primaryButtonClass, secondaryButtonClass } from "@/lib/ui";
 import { ContactForm } from "./contact-form";
 import { PayoutForm } from "./payout-form";
@@ -66,6 +67,8 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
   const origin = host ? `${head.get("x-forwarded-proto") ?? "https"}://${host}` : "";
 
   const shipping = await shippingSettings(vendor.id);
+  const agreements = await signedAgreements(vendor.id);
+  const agreement = agreements[0] ?? null;
 
   const team = await db.vendorUser.findMany({
     where: { vendorId: vendor.id },
@@ -110,6 +113,32 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
             { label: "Sign-in email", value: user.email },
           ]}
         />
+      </Card>
+
+      <Card
+        title="Seller agreement"
+        description="The terms you agreed with the store."
+        actions={
+          agreement && (
+            <Link href="/settings/agreement" className={secondaryButtonClass}>
+              Read it again
+            </Link>
+          )
+        }
+      >
+        {agreement ? (
+          <DetailRows
+            rows={[
+              { label: "Agreement", value: `${agreement.title} (version ${agreement.version})` },
+              { label: "Signed as", value: agreement.signedName },
+              { label: "Signed on", value: dateFormat.format(new Date(agreement.acceptedAt)) },
+            ]}
+          />
+        ) : (
+          <p className="text-sm text-zinc-600">
+            The store hasn&apos;t asked you to agree to anything yet.
+          </p>
+        )}
       </Card>
 
       <Card
