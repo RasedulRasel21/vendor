@@ -92,53 +92,58 @@ model ShopSettings {
 }
 
 model Vendor {
-  id                  String                @id
-  shop                String
-  name                String
-  handle              String
-  email               String
-  phone               String?
-  status              VendorStatus          @default(PENDING)
-  statusReason        String?
-  notes               String?
-  approvedAt          DateTime?
-  createdAt           DateTime              @default(now())
-  updatedAt           DateTime
-  commissionFixed     Decimal?              @db.Decimal(12, 2)
-  commissionPercent   Decimal?              @db.Decimal(5, 2)
-  codEnabled          Boolean               @default(true)
-  codMaxOrderValue    Decimal?              @db.Decimal(12, 2)
-  shippingMode        ShippingMode          @default(VENDOR_SHIPS)
-  addressLine1        String?
-  addressLine2        String?
-  city                String?
-  countryCode         String?
-  payoutDetails       Json?
-  payoutMethod        PayoutMethod?
-  payoutUpdatedAt     DateTime?
-  postalCode          String?
-  taxIdEncrypted      String?
-  taxInfo             Json?
-  taxInfoUpdatedAt    DateTime?
-  stripeAccountId     String?
-  applicantHash       String?
-  application         Json?
-  appliedAt           DateTime?
-  bannerUrl           String?
-  bio                 String?
-  logoUrl             String?
-  returnPolicy        String?
-  shippingPolicy      String?
-  CommissionInvoice   CommissionInvoice[]
-  LedgerEntry         LedgerEntry[]
-  OrderLineVendor     OrderLineVendor[]
-  Payout              Payout[]
-  ProductSubmission   ProductSubmission[]
-  VendorActivity      VendorActivity[]
-  VendorChangeRequest VendorChangeRequest[]
-  VendorOrder         VendorOrder[]
-  VendorProduct       VendorProduct[]
-  VendorUser          VendorUser[]
+  id                        String                      @id
+  shop                      String
+  name                      String
+  handle                    String
+  email                     String
+  phone                     String?
+  status                    VendorStatus                @default(PENDING)
+  statusReason              String?
+  notes                     String?
+  approvedAt                DateTime?
+  createdAt                 DateTime                    @default(now())
+  updatedAt                 DateTime
+  commissionFixed           Decimal?                    @db.Decimal(12, 2)
+  commissionPercent         Decimal?                    @db.Decimal(5, 2)
+  codEnabled                Boolean                     @default(true)
+  codMaxOrderValue          Decimal?                    @db.Decimal(12, 2)
+  shippingMode              ShippingMode                @default(VENDOR_SHIPS)
+  addressLine1              String?
+  addressLine2              String?
+  city                      String?
+  countryCode               String?
+  payoutDetails             Json?
+  payoutMethod              PayoutMethod?
+  payoutUpdatedAt           DateTime?
+  postalCode                String?
+  taxIdEncrypted            String?
+  taxInfo                   Json?
+  taxInfoUpdatedAt          DateTime?
+  stripeAccountId           String?
+  applicantHash             String?
+  application               Json?
+  appliedAt                 DateTime?
+  bannerUrl                 String?
+  bio                       String?
+  logoUrl                   String?
+  returnPolicy              String?
+  shippingPolicy            String?
+  autoApproveProducts       Boolean                     @default(false)
+  canCreateProducts         Boolean                     @default(true)
+  canSeeCustomerContact     Boolean                     @default(true)
+  productLimit              Int                         @default(0)
+  CommissionInvoice         CommissionInvoice[]
+  LedgerEntry               LedgerEntry[]
+  OrderLineVendor           OrderLineVendor[]
+  Payout                    Payout[]
+  ProductSubmission         ProductSubmission[]
+  VendorActivity            VendorActivity[]
+  VendorAgreementAcceptance VendorAgreementAcceptance[]
+  VendorChangeRequest       VendorChangeRequest[]
+  VendorOrder               VendorOrder[]
+  VendorProduct             VendorProduct[]
+  VendorUser                VendorUser[]
 
   @@unique([shop, email])
   @@unique([shop, handle])
@@ -307,6 +312,12 @@ model VendorOrder {
   refundedAt            DateTime?
   acceptedAt            DateTime?
   refundKeepsCommission Boolean            @default(false)
+  cashCollectedAt       DateTime?
+  cashCollectedBy       String?
+  cashOnDelivery        Boolean            @default(false)
+  paymentGateway        String?
+  refundedTax           Decimal            @default(0) @db.Decimal(12, 2)
+  tax                   Decimal            @default(0) @db.Decimal(12, 2)
   LedgerEntry           LedgerEntry[]
   Vendor                Vendor             @relation(fields: [vendorId], references: [id], onDelete: Cascade)
   VendorOrderIssue      VendorOrderIssue[]
@@ -534,6 +545,38 @@ model EmailMessage {
   @@index([shop, createdAt])
 }
 
+model VendorAgreement {
+  id                        String                      @id
+  shop                      String
+  version                   Int
+  title                     String
+  body                      String
+  publishedAt               DateTime?
+  createdAt                 DateTime                    @default(now())
+  updatedAt                 DateTime
+  VendorAgreementAcceptance VendorAgreementAcceptance[]
+
+  @@unique([shop, version])
+  @@index([shop, publishedAt])
+}
+
+model VendorAgreementAcceptance {
+  id              String          @id
+  agreementId     String
+  shop            String
+  vendorId        String
+  vendorUserId    String?
+  signedName      String
+  signedEmail     String
+  acceptedAt      DateTime        @default(now())
+  signerHash      String?
+  VendorAgreement VendorAgreement @relation(fields: [agreementId], references: [id], onDelete: Cascade)
+  Vendor          Vendor          @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+
+  @@unique([agreementId, vendorId])
+  @@index([shop, vendorId])
+}
+
 enum ShippingMode {
   VENDOR_SHIPS
   STORE_SHIPS
@@ -616,6 +659,7 @@ enum LedgerEntryType {
   ADJUSTMENT
   PAYOUT
   PAYOUT_REVERSAL
+  COD_COLLECTED
 }
 
 enum PayoutStatus {

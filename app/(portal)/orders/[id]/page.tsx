@@ -12,6 +12,7 @@ import { carrierOptions } from "@/lib/carriers";
 import { db } from "@/lib/db";
 import { vendorPermissions } from "@/lib/store-app";
 import { formatMoney } from "@/lib/money";
+import { CashForm } from "./cash-form";
 import { shipDeadline } from "@/lib/deadline";
 import { issueReasonLabel } from "@/lib/order-issues";
 import { RETURN_STATUS } from "@/lib/order-status";
@@ -161,6 +162,16 @@ export default async function OrderPage({ params }: PageProps<"/orders/[id]">) {
       )}
 
       {issue && <IssueBanner vendorOrderId={order.id} issue={issue} />}
+
+      {order.cashOnDelivery && !storeShips && !order.paidAt && order.status !== "CANCELLED" && (
+        <CashForm
+          vendorOrderId={order.id}
+          amount={formatMoney(
+            (Number(order.subtotal) + Number(order.shipping) + Number(order.tax)).toFixed(2),
+            currency,
+          )}
+        />
+      )}
 
       {isRefunded && (
         <div className="mb-6 flex gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">

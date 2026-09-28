@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { ISSUE_REASONS } from "@/lib/order-issues";
 import { requireVendorUser } from "@/lib/session";
-import { requestFulfillment, requestReturnAction } from "@/lib/store-app";
+import { markCashCollected, requestFulfillment, requestReturnAction } from "@/lib/store-app";
 
 export type ShipFormState = {
   ok?: boolean;
@@ -314,5 +314,41 @@ export async function markShipped(
 
   revalidatePath("/orders");
   revalidatePath(`/orders/${order.id}`);
+  return { ok: true };
+}
+
+// Cash on delivery, shipped by the vendor: they hand the parcel over and take the money,
+// so they're the one who knows it arrived. Saying so here marks the order paid in the
+// store, which is what puts the sale on their statement — and what puts the store's
+// commission and tax on it as something they now owe.
+export async function confirmCashCollected(vendorOrderId: string): Promise<IssueFormState> {
+  const user = await requireVendorUser();
+
+  const order = await db.vendorOrder.findFirst({
+    where: { id: vendorOrderId, vendorId: user.vendorId },
+    select: { id: true, orderName: true, status: true, paidAt: true, cashOnDelivery: true, shippingMode: true },
+  });
+  if (!order) return { errors: { form: "This order wasn't found." } };
+  if (!order.cashOnDelivery || order.shippingMode !== "VENDOR_SHIPS") {
+    return { errors: { form: "This one isn't yours to collect." } };
+  }
+  if (order.paidAt) return { ok: true };
+  if (order.status === "CANCELLED") return { errors: { form: "This order was cancelled." } };
+
+  const result = await markCashCollected(order.id, user.vendorId);
+  if ("error" in result) return { errors: { form: result.error } };
+
+  await db.vendorActivity.create({
+    data: {
+      id: randomUUID(),
+      vendorId: user.vendorId,
+      action: "order.cash_collected",
+      actor: `vendor_user:${user.id}`,
+      details: { orderName: order.orderName },
+    },
+  });
+
+  revalidatePath(`/orders/${order.id}`);
+  revalidatePath("/earnings");
   return { ok: true };
 }

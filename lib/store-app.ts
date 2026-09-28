@@ -391,3 +391,28 @@ export async function signAgreement(input: {
   if (result.errors) return { errors: result.errors as Record<string, string> };
   return { error: (result.error as string) ?? "That couldn't be saved. Try again." };
 }
+
+// A vendor shipping their own cash-on-delivery order takes the money at the door. Telling
+// Shopify it's paid needs the store app, which holds the Shopify credentials.
+export async function markCashCollected(
+  vendorOrderId: string,
+  vendorId: string,
+): Promise<{ ok: true } | { error: string }> {
+  const config = bridge();
+  if (!config) return { error: "This isn't set up yet. Tell the store." };
+
+  try {
+    const response = await fetch(`${config.appUrl}/api/portal/cash`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-storevendor-secret": config.secret },
+      body: JSON.stringify({ vendorOrderId, vendorId }),
+      cache: "no-store",
+    });
+    const result = (await response.json().catch(() => null)) as { ok?: true; error?: string } | null;
+    if (response.ok && result?.ok) return { ok: true };
+    return { error: result?.error ?? "That couldn't be saved. Try again." };
+  } catch (error) {
+    console.error("Cash collected request failed", error);
+    return { error: "The store couldn't be reached. Try again in a moment." };
+  }
+}
