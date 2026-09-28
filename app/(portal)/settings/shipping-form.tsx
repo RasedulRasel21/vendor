@@ -2,8 +2,8 @@
 
 import { useActionState, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
-import { COUNTRIES } from "@/lib/countries";
 import { errorClass, inputClass, labelClass, primaryButtonClass, secondaryButtonClass } from "@/lib/ui";
+import { CountryPicker } from "./country-picker";
 import { saveShipping, type ShippingFormState } from "./shipping-actions";
 import type { VendorRate } from "@/lib/store-app";
 
@@ -79,32 +79,11 @@ export function ShippingForm({ rates, currencyCode }: { rates: VendorRate[]; cur
             </div>
 
             <div className="mt-4">
-              <label htmlFor={`where-${row.key}`} className={labelClass}>
-                Where it applies
-              </label>
-              <select
+              <CountryPicker
                 id={`where-${row.key}`}
-                multiple
-                size={5}
-                value={row.countryCodes}
-                onChange={(event) =>
-                  update(row.key, {
-                    countryCodes: Array.from(event.target.selectedOptions, (option) => option.value),
-                  })
-                }
-                className={`${inputClass} h-auto`}
-              >
-                {COUNTRIES.map((country) => (
-                  <option key={country.code} value={country.code}>
-                    {country.name}
-                  </option>
-                ))}
-              </select>
-              <p className="mt-1.5 text-sm text-zinc-500">
-                {row.countryCodes.length
-                  ? `${row.countryCodes.length} ${row.countryCodes.length === 1 ? "country" : "countries"}. Hold Ctrl or Cmd to pick more.`
-                  : "Nothing picked, so this covers everywhere your other rates don't. Only one rate can do that."}
-              </p>
+                selected={row.countryCodes}
+                onChange={(countryCodes) => update(row.key, { countryCodes })}
+              />
             </div>
 
             {rows.length > 1 && (
