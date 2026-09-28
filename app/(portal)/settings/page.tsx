@@ -156,7 +156,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
           title="What you charge to deliver"
           description="Your own postage, added to the order when someone buys from you."
         >
-          <ShippingForm rates={shipping.rates} currencyCode={shipping.currencyCode} />
+          <ShippingForm zones={shipping.zones} currencyCode={shipping.currencyCode} />
         </Card>
       )}
 

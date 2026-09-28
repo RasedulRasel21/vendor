@@ -417,16 +417,24 @@ export async function markCashCollected(
   }
 }
 
+// Shaped the way Shopify shapes its own shipping: a zone covers some countries, and the
+// delivery options a customer can pick from live inside it.
 export type VendorRate = {
   name: string;
   price: string;
-  countryCodes: string[];
-  // Empty means the rate always applies. Together they build a free-shipping threshold:
-  // one rate above the line, another below it.
+  transitTime: string;
+  // Empty means the option always applies. Together they build a free-shipping threshold:
+  // one option above the line, another below it.
   minOrderTotal: string;
   maxOrderTotal: string;
 };
-export type ShippingSettings = { enabled: boolean; currencyCode: string; rates: VendorRate[] };
+export type VendorZone = {
+  name: string;
+  // Empty means everywhere the other zones don't cover.
+  countryCodes: string[];
+  rates: VendorRate[];
+};
+export type ShippingSettings = { enabled: boolean; currencyCode: string; zones: VendorZone[] };
 
 // What this vendor charges to deliver. The rates live with the store app because getting
 // them in front of a customer means writing a Shopify delivery profile.
@@ -453,15 +461,15 @@ export async function shippingSettings(vendorId: string): Promise<ShippingSettin
   return {
     enabled: result?.enabled === true,
     currencyCode: (result?.currencyCode as string) ?? "USD",
-    rates: (result?.rates as VendorRate[]) ?? [],
+    zones: (result?.zones as VendorZone[]) ?? [],
   };
 }
 
-export async function saveShippingRates(
+export async function saveShippingZones(
   vendorId: string,
-  rates: VendorRate[],
+  zones: VendorZone[],
 ): Promise<{ ok: true; warning?: string } | { errors: Record<string, string> } | { error: string }> {
-  const result = await shippingCall({ vendorId, intent: "save", rates });
+  const result = await shippingCall({ vendorId, intent: "save", zones });
   if (!result) return { error: "The store couldn't be reached. Try again in a moment." };
   if (result.errors) return { errors: result.errors as Record<string, string> };
   if (result.ok === true) return { ok: true, warning: result.warning as string | undefined };

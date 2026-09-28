@@ -38,7 +38,7 @@ export function CountryPicker({
   return (
     <div>
       <label htmlFor={id} className={labelClass}>
-        Where it applies
+        Countries in this zone
       </label>
 
       {chosen.length > 0 && (
@@ -101,7 +101,7 @@ export function CountryPicker({
       <p className="mt-1.5 text-sm text-zinc-500">
         {chosen.length
           ? `${chosen.length} ${chosen.length === 1 ? "country" : "countries"}. Tap one to take it off.`
-          : "None picked, so this rate covers everywhere your other rates don't."}
+          : "None picked, so this zone covers everywhere your other zones don't."}
       </p>
     </div>
   );

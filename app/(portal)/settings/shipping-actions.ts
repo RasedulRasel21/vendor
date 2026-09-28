@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireVendorUser } from "@/lib/session";
-import { saveShippingRates, type VendorRate } from "@/lib/store-app";
+import { saveShippingZones, type VendorZone } from "@/lib/store-app";
 
 export type ShippingFormState = {
   ok?: boolean;
@@ -16,16 +16,16 @@ export async function saveShipping(
 ): Promise<ShippingFormState> {
   const user = await requireVendorUser();
 
-  let rates: VendorRate[];
+  let zones: VendorZone[];
   try {
-    const parsed = JSON.parse(String(formData.get("rates") ?? "[]"));
+    const parsed = JSON.parse(String(formData.get("zones") ?? "[]"));
     if (!Array.isArray(parsed)) throw new Error("not a list");
-    rates = parsed;
+    zones = parsed;
   } catch {
-    return { errors: { form: "Those rates couldn't be read. Refresh the page and try again." } };
+    return { errors: { form: "That couldn't be read. Refresh the page and try again." } };
   }
 
-  const result = await saveShippingRates(user.vendorId, rates);
+  const result = await saveShippingZones(user.vendorId, zones);
   if ("errors" in result) return { errors: result.errors };
   if ("error" in result) return { errors: { form: result.error } };
 
