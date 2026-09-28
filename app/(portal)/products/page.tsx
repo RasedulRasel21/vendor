@@ -2,14 +2,13 @@ import { Search } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { PageHeader } from "@/components/portal/page-header";
-import { ProductThumb } from "@/components/portal/product-thumb";
-import { StatusBadge } from "@/components/status-badge";
 import { db } from "@/lib/db";
 import { formatMoney } from "@/lib/money";
 import { SUBMISSION_STATUS, type SubmissionStatus } from "@/lib/product-status";
 import { requireVendorUser } from "@/lib/session";
 import { vendorPermissions } from "@/lib/store-app";
 import { primaryButtonClass, secondaryButtonClass } from "@/lib/ui";
+import { ProductTable } from "./product-table";
 
 export const metadata: Metadata = {
   title: "Products · StoreVendor",
@@ -164,50 +163,19 @@ export default async function ProductsPage({ searchParams }: PageProps<"/product
             )}
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-160 text-left text-sm">
-              <thead className="text-zinc-500">
-                <tr>
-                  <th className="px-6 py-3 font-medium">Product</th>
-                  <th className="px-3 py-3 font-medium">Status</th>
-                  <th className="px-3 py-3 text-right font-medium">Price</th>
-                  <th className="px-6 py-3 text-right font-medium">Updated</th>
-                </tr>
-              </thead>
-              <tbody>
-                {submissions.map((submission) => {
-                  const variantCount = Array.isArray(submission.variants) ? submission.variants.length : 1;
-                  return (
-                    <tr key={submission.id} className="group border-t border-zinc-100 transition hover:bg-zinc-50">
-                      <td className="px-6 py-3">
-                        <Link href={`/products/${submission.id}`} className="flex items-center gap-3">
-                          <ProductThumb src={submission.imageUrls[0]} size="sm" />
-                          <span className="min-w-0">
-                            <span className="block truncate font-medium text-zinc-900 group-hover:underline">
-                              {submission.title}
-                            </span>
-                            <span className="block text-xs text-zinc-500">
-                              {variantCount} {variantCount === 1 ? "variant" : "variants"}
-                            </span>
-                          </span>
-                        </Link>
-                      </td>
-                      <td className="px-3 py-3">
-                        <StatusBadge status={submission.status} />
-                        {submission.pendingSubmittedAt && (
-                          <span className="mt-1 block text-xs text-amber-700">Changes pending</span>
-                        )}
-                      </td>
-                      <td className="px-3 py-3 text-right tabular-nums text-zinc-800">
-                        {submission.price ? formatMoney(submission.price.toFixed(2), currencyCode) : "—"}
-                      </td>
-                      <td className="px-6 py-3 text-right text-zinc-500">{dateFormat.format(submission.updatedAt)}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <ProductTable
+            currencyCode={currencyCode}
+            rows={submissions.map((submission) => ({
+              id: submission.id,
+              title: submission.title,
+              status: submission.status as SubmissionStatus,
+              imageUrl: submission.imageUrls[0] ?? null,
+              variantCount: Array.isArray(submission.variants) ? submission.variants.length : 1,
+              price: submission.price ? formatMoney(submission.price.toFixed(2), currencyCode) : "—",
+              updatedAt: dateFormat.format(submission.updatedAt),
+              pendingChanges: Boolean(submission.pendingSubmittedAt),
+            }))}
+          />
         )}
       </div>
     </div>

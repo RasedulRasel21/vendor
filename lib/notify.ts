@@ -10,6 +10,7 @@
 
 type Notification =
   | { intent: "product-submitted"; vendorId: string; submissionId: string; edit?: boolean }
+  | { intent: "products-changed"; vendorId: string; count: number }
   | { intent: "change-requested"; vendorId: string; changeId: string }
   | { intent: "order-issue"; vendorId: string; vendorOrderId: string; reason: string; note?: string | null }
   | { intent: "team-invite"; vendorId: string; email: string; url: string; invitedBy?: string | null }

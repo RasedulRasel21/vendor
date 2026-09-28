@@ -348,6 +348,13 @@ export async function importProducts(
       imageUrls: checked.data.imageUrls,
       options: checked.data.options as unknown as Prisma.InputJsonValue,
       variants: checked.data.variants as unknown as Prisma.InputJsonValue,
+      // The summary of the variants, which is what the lists and the store's approval
+      // screen read. Leaving them out is why imported products showed no price.
+      price: checked.data.price,
+      compareAtPrice: checked.data.compareAtPrice,
+      sku: checked.data.sku,
+      barcode: checked.data.barcode,
+      inventoryQuantity: checked.data.inventoryQuantity,
     };
 
     if (forSubmit) {
