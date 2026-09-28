@@ -417,7 +417,15 @@ export async function markCashCollected(
   }
 }
 
-export type VendorRate = { name: string; price: string; countryCodes: string[] };
+export type VendorRate = {
+  name: string;
+  price: string;
+  countryCodes: string[];
+  // Empty means the rate always applies. Together they build a free-shipping threshold:
+  // one rate above the line, another below it.
+  minOrderTotal: string;
+  maxOrderTotal: string;
+};
 export type ShippingSettings = { enabled: boolean; currencyCode: string; rates: VendorRate[] };
 
 // What this vendor charges to deliver. The rates live with the store app because getting

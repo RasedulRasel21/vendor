@@ -11,12 +11,26 @@ const initialState: ShippingFormState = {};
 
 type Row = VendorRate & { key: string };
 
-const blank = (): Row => ({ key: crypto.randomUUID(), name: "Standard", price: "", countryCodes: [] });
+const blank = (): Row => ({
+  key: crypto.randomUUID(),
+  name: "Standard",
+  price: "",
+  countryCodes: [],
+  minOrderTotal: "",
+  maxOrderTotal: "",
+});
 
 export function ShippingForm({ rates, currencyCode }: { rates: VendorRate[]; currencyCode: string }) {
   const [state, formAction, saving] = useActionState(saveShipping, initialState);
   const [rows, setRows] = useState<Row[]>(
-    rates.length ? rates.map((rate) => ({ ...rate, key: crypto.randomUUID() })) : [blank()],
+    rates.length
+      ? rates.map((rate) => ({
+          ...rate,
+          minOrderTotal: rate.minOrderTotal ?? "",
+          maxOrderTotal: rate.maxOrderTotal ?? "",
+          key: crypto.randomUUID(),
+        }))
+      : [blank()],
   );
 
   const update = (key: string, patch: Partial<Row>) =>
@@ -41,7 +55,15 @@ export function ShippingForm({ rates, currencyCode }: { rates: VendorRate[]; cur
       <input
         type="hidden"
         name="rates"
-        value={JSON.stringify(rows.map(({ name, price, countryCodes }) => ({ name, price, countryCodes })))}
+        value={JSON.stringify(
+          rows.map(({ name, price, countryCodes, minOrderTotal, maxOrderTotal }) => ({
+            name,
+            price,
+            countryCodes,
+            minOrderTotal,
+            maxOrderTotal,
+          })),
+        )}
       />
 
       <ul className="space-y-4">
@@ -84,6 +106,46 @@ export function ShippingForm({ rates, currencyCode }: { rates: VendorRate[]; cur
                 selected={row.countryCodes}
                 onChange={(countryCodes) => update(row.key, { countryCodes })}
               />
+            </div>
+
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <div>
+                <label htmlFor={`min-${row.key}`} className={labelClass}>
+                  Only when the order is at least ({currencyCode})
+                </label>
+                <input
+                  id={`min-${row.key}`}
+                  value={row.minOrderTotal}
+                  onChange={(event) => update(row.key, { minOrderTotal: event.target.value })}
+                  inputMode="decimal"
+                  placeholder="Any"
+                  className={inputClass}
+                />
+                {errors[`rates.${index}.minOrderTotal`] && (
+                  <p className={errorClass}>{errors[`rates.${index}.minOrderTotal`]}</p>
+                )}
+              </div>
+              <div>
+                <label htmlFor={`max-${row.key}`} className={labelClass}>
+                  and at most ({currencyCode})
+                </label>
+                <input
+                  id={`max-${row.key}`}
+                  value={row.maxOrderTotal}
+                  onChange={(event) => update(row.key, { maxOrderTotal: event.target.value })}
+                  inputMode="decimal"
+                  placeholder="Any"
+                  className={inputClass}
+                />
+                {errors[`rates.${index}.maxOrderTotal`] && (
+                  <p className={errorClass}>{errors[`rates.${index}.maxOrderTotal`]}</p>
+                )}
+              </div>
+              <p className="text-sm text-zinc-500 sm:col-span-2">
+                Leave both empty and this rate always applies. To post free over 5,000: one
+                rate at 0 with &ldquo;at least 5,000&rdquo;, and your normal rate with
+                &ldquo;at most 4,999&rdquo;.
+              </p>
             </div>
 
             {rows.length > 1 && (
