@@ -12,6 +12,7 @@ import {
   type ProductErrors,
 } from "@/lib/product-validation";
 import { notifyByEmail } from "@/lib/notify";
+import { FEATURES, NOT_INCLUDED, storePlan } from "@/lib/plan";
 import { requireVendorUser } from "@/lib/session";
 import { checkProductRules, productSubmitted, vendorPermissions } from "@/lib/store-app";
 
@@ -297,6 +298,9 @@ export async function importProducts(
   formData: FormData,
 ): Promise<ImportState> {
   const user = await requireVendorUser();
+
+  const plan = await storePlan(user.Vendor.shop);
+  if (!plan.has(FEATURES.BULK_TOOLS)) return { error: NOT_INCLUDED };
 
   // Drafts by default. Ticking the box puts them in front of the store instead, which
   // means every product has to be complete enough to submit.

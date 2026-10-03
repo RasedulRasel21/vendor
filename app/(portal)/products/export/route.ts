@@ -1,12 +1,16 @@
 import { db } from "@/lib/db";
 import { productsToCsv } from "@/lib/product-csv";
 import type { ProductOption } from "@/lib/product-draft";
+import { FEATURES, storePlan } from "@/lib/plan";
 import { requireVendorUser } from "@/lib/session";
 
 // Everything this vendor has, as a spreadsheet they can edit and send back. Scoped to
 // their own products, like everything else in the portal.
 export async function GET() {
   const user = await requireVendorUser();
+
+  const plan = await storePlan(user.Vendor.shop);
+  if (!plan.has(FEATURES.BULK_TOOLS)) return new Response("Not available", { status: 404 });
 
   const submissions = await db.productSubmission.findMany({
     where: { vendorId: user.vendorId },

@@ -25,7 +25,17 @@ const initialState: BulkState = {};
 // The list, with the option of doing something to several products at once. Ticking is
 // the only thing that changes about the table itself: one product at a time is still the
 // normal way to work, and the bar only appears when it has something to act on.
-export function ProductTable({ rows, currencyCode }: { rows: ProductRow[]; currencyCode: string }) {
+export function ProductTable({
+  rows,
+  currencyCode,
+  bulkTools,
+}: {
+  rows: ProductRow[];
+  currencyCode: string;
+  // Changing several at once is part of the store's plan. Without it the list is still
+  // the list; there are simply no tick boxes.
+  bulkTools: boolean;
+}) {
   const [selected, setSelected] = useState<string[]>([]);
   const [state, formAction, working] = useActionState(bulkEdit, initialState);
   const [action, setAction] = useState<"price" | "stock">("price");
@@ -49,7 +59,7 @@ export function ProductTable({ rows, currencyCode }: { rows: ProductRow[]; curre
         </p>
       )}
 
-      {selected.length > 0 && (
+      {bulkTools && selected.length > 0 && (
         <form action={formAction} className="border-b border-zinc-200 bg-zinc-50 px-4 py-3">
           {selected.map((id) => (
             <input key={id} type="hidden" name="ids" value={id} />
@@ -164,6 +174,7 @@ export function ProductTable({ rows, currencyCode }: { rows: ProductRow[]; curre
         <table className="w-full min-w-160 text-left text-sm">
           <thead className="text-zinc-500">
             <tr>
+              {bulkTools && (
               <th scope="col" className="w-10 py-3 pl-6 pr-0">
                 <input
                   type="checkbox"
@@ -173,7 +184,8 @@ export function ProductTable({ rows, currencyCode }: { rows: ProductRow[]; curre
                   className="size-4 rounded border-zinc-300 text-primary-600 focus:ring-primary-500"
                 />
               </th>
-              <th scope="col" className="px-3 py-3 font-medium">
+              )}
+              <th scope="col" className={`${bulkTools ? "px-3" : "pl-6 pr-3"} py-3 font-medium`}>
                 Product
               </th>
               <th scope="col" className="px-3 py-3 font-medium">
@@ -195,6 +207,7 @@ export function ProductTable({ rows, currencyCode }: { rows: ProductRow[]; curre
                   key={row.id}
                   className={`group border-t border-zinc-100 transition ${ticked ? "bg-primary-50/60" : "hover:bg-zinc-50"}`}
                 >
+                  {bulkTools && (
                   <td className="py-3 pl-6 pr-0">
                     <input
                       type="checkbox"
@@ -204,7 +217,8 @@ export function ProductTable({ rows, currencyCode }: { rows: ProductRow[]; curre
                       className="size-4 rounded border-zinc-300 text-primary-600 focus:ring-primary-500"
                     />
                   </td>
-                  <td className="px-3 py-3">
+                  )}
+                  <td className={`${bulkTools ? "px-3" : "pl-6 pr-3"} py-3`}>
                     <Link href={`/products/${row.id}`} className="flex items-center gap-3">
                       <ProductThumb src={row.imageUrl} size="sm" />
                       <span className="min-w-0">

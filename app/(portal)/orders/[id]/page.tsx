@@ -13,6 +13,7 @@ import { db } from "@/lib/db";
 import { vendorPermissions } from "@/lib/store-app";
 import { formatMoney } from "@/lib/money";
 import { CashForm } from "./cash-form";
+import { FEATURES, storePlan } from "@/lib/plan";
 import { shipDeadline } from "@/lib/deadline";
 import { issueReasonLabel } from "@/lib/order-issues";
 import { RETURN_STATUS } from "@/lib/order-status";
@@ -95,10 +96,13 @@ export default async function OrderPage({ params }: PageProps<"/orders/[id]">) {
   const canShip = !storeShips && ["OPEN", "PARTIAL"].includes(order.status) && shippableLines.length > 0;
   const carriers = canShip ? await carrierOptions(user.Vendor.shop, user.vendorId) : null;
 
-  const settings = await db.shopSettings.findUnique({
-    where: { shop: user.Vendor.shop },
-    select: { fulfillmentDays: true, restockLocationId: true },
-  });
+  const [settings, plan] = await Promise.all([
+    db.shopSettings.findUnique({
+      where: { shop: user.Vendor.shop },
+      select: { fulfillmentDays: true, restockLocationId: true },
+    }),
+    storePlan(user.Vendor.shop),
+  ]);
   // The deadline is only worth showing while something still has to go out.
   const deadline = canShip && settings ? shipDeadline(order.placedAt, settings.fulfillmentDays) : null;
   // Vendors can only put stock back once the store has said where it goes.
@@ -163,7 +167,7 @@ export default async function OrderPage({ params }: PageProps<"/orders/[id]">) {
 
       {issue && <IssueBanner vendorOrderId={order.id} issue={issue} />}
 
-      {order.cashOnDelivery && !storeShips && !order.paidAt && order.status !== "CANCELLED" && (
+      {plan.has(FEATURES.COD) && order.cashOnDelivery && !storeShips && !order.paidAt && order.status !== "CANCELLED" && (
         <CashForm
           vendorOrderId={order.id}
           amount={formatMoney(

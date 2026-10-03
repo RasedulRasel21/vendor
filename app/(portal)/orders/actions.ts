@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { ISSUE_REASONS, issueReasonLabel } from "@/lib/order-issues";
 import { notifyByEmail } from "@/lib/notify";
+import { FEATURES, NOT_INCLUDED, storePlan } from "@/lib/plan";
 import { requireVendorUser } from "@/lib/session";
 import { markCashCollected, requestFulfillment, requestReturnAction } from "@/lib/store-app";
 
@@ -334,6 +335,9 @@ export async function markShipped(
 // commission and tax on it as something they now owe.
 export async function confirmCashCollected(vendorOrderId: string): Promise<IssueFormState> {
   const user = await requireVendorUser();
+
+  const plan = await storePlan(user.Vendor.shop);
+  if (!plan.has(FEATURES.COD)) return { errors: { form: NOT_INCLUDED } };
 
   const order = await db.vendorOrder.findFirst({
     where: { id: vendorOrderId, vendorId: user.vendorId },

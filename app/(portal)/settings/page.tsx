@@ -8,6 +8,7 @@ import { payoutRows } from "@/lib/payout";
 import { requireVendorUser } from "@/lib/session";
 import { cancelPayoutRequest, startStripe, switchToStripe } from "./actions";
 import { signedAgreements, stripeStatus } from "@/lib/store-app";
+import { FEATURES, storePlan } from "@/lib/plan";
 import { primaryButtonClass, secondaryButtonClass } from "@/lib/ui";
 import { ContactForm } from "./contact-form";
 import { PayoutForm } from "./payout-form";
@@ -67,7 +68,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
   const origin = host ? `${head.get("x-forwarded-proto") ?? "https"}://${host}` : "";
 
   const shipping = await shippingSettings(vendor.id);
-  const agreements = await signedAgreements(vendor.id);
+  const [agreements, plan] = await Promise.all([signedAgreements(vendor.id), storePlan(vendor.shop)]);
   const agreement = agreements[0] ?? null;
 
   const team = await db.vendorUser.findMany({
@@ -157,7 +158,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
         />
       </Card>
 
-      {user.role === "OWNER" && (
+      {user.role === "OWNER" && plan.has(FEATURES.VENDOR_STAFF) && (
         <Card
           title="Your team"
           description="People who can sign in and work on this shop with you."

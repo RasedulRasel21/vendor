@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { notifyByEmail } from "@/lib/notify";
+import { FEATURES, NOT_INCLUDED, storePlan } from "@/lib/plan";
 import { db } from "@/lib/db";
 import { requireVendorUser } from "@/lib/session";
 import { createToken, hashToken } from "@/lib/tokens";
@@ -30,6 +31,9 @@ async function requireOwner() {
 export async function inviteTeammate(_previousState: TeamState, formData: FormData): Promise<TeamState> {
   const owner = await requireOwner();
   if (!owner) return { error: "Only the account owner can invite people." };
+
+  const plan = await storePlan(owner.Vendor.shop);
+  if (!plan.has(FEATURES.VENDOR_STAFF)) return { error: NOT_INCLUDED };
 
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const name = String(formData.get("name") ?? "").trim().slice(0, 80);

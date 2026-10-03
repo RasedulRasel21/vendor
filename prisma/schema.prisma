@@ -90,6 +90,10 @@ model ShopSettings {
   requireDescription      Boolean   @default(false)
   requireProductType      Boolean   @default(false)
   vendorShippingRates     Boolean   @default(false)
+  plan                    String    @default("NONE")
+  planCheckedAt           DateTime?
+  planHandle              String?
+  planTrialEndsAt         DateTime?
 }
 
 model Vendor {

@@ -7,6 +7,7 @@ import { formatMoney } from "@/lib/money";
 import { SUBMISSION_STATUS, type SubmissionStatus } from "@/lib/product-status";
 import { requireVendorUser } from "@/lib/session";
 import { vendorPermissions } from "@/lib/store-app";
+import { FEATURES, storePlan } from "@/lib/plan";
 import { primaryButtonClass, secondaryButtonClass } from "@/lib/ui";
 import { ProductTable } from "./product-table";
 
@@ -25,6 +26,8 @@ export default async function ProductsPage({ searchParams }: PageProps<"/product
       : undefined;
   const query = typeof q === "string" ? q.trim().slice(0, 100) : "";
   const { canCreateProducts } = await vendorPermissions(user.vendorId);
+  const plan = await storePlan(user.Vendor.shop);
+  const bulkTools = plan.has(FEATURES.BULK_TOOLS);
 
   const [submissions, grouped, settings] = await Promise.all([
     db.productSubmission.findMany({
@@ -86,13 +89,17 @@ export default async function ProductsPage({ searchParams }: PageProps<"/product
         description="Everything you've added, from drafts to products live in the store."
         actions={
           <div className="flex flex-wrap gap-2">
-            <Link href="/products/import" className={secondaryButtonClass}>
-              Import
-            </Link>
-            {/* A file to save, not a page to open: Link would navigate instead of downloading. */}
-            <a href="/products/export" download className={secondaryButtonClass}>
-              Export
-            </a>
+            {bulkTools && (
+              <>
+                <Link href="/products/import" className={secondaryButtonClass}>
+                  Import
+                </Link>
+                {/* A file to save, not a page to open: Link would navigate instead of downloading. */}
+                <a href="/products/export" download className={secondaryButtonClass}>
+                  Export
+                </a>
+              </>
+            )}
             {canCreateProducts && (
               <Link href="/products/new" className={primaryButtonClass}>
                 Add product
@@ -164,6 +171,7 @@ export default async function ProductsPage({ searchParams }: PageProps<"/product
           </div>
         ) : (
           <ProductTable
+            bulkTools={bulkTools}
             currencyCode={currencyCode}
             rows={submissions.map((submission) => ({
               id: submission.id,

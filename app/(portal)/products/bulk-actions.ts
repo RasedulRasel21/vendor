@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { notifyByEmail } from "@/lib/notify";
+import { FEATURES, NOT_INCLUDED, storePlan } from "@/lib/plan";
 import { applyChange, type Change } from "@/lib/bulk-change";
 import { draftFromSubmission } from "@/lib/product-draft";
 import { validateProduct } from "@/lib/product-validation";
@@ -22,6 +23,9 @@ const MAX_SELECTED = 50;
 
 export async function bulkEdit(_previousState: BulkState, formData: FormData): Promise<BulkState> {
   const user = await requireVendorUser();
+
+  const plan = await storePlan(user.Vendor.shop);
+  if (!plan.has(FEATURES.BULK_TOOLS)) return { error: NOT_INCLUDED };
 
   const action = String(formData.get("action") ?? "");
   const ids = formData.getAll("ids").map(String).slice(0, MAX_SELECTED);
