@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { BadgeCheck, ImagePlus, Wallet } from "lucide-react";
 
 const WHAT_YOU_CAN_DO = [
@@ -16,11 +17,10 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
           className="pointer-events-none absolute -bottom-40 -right-40 size-112 rounded-full border-56 border-primary-300/15"
         />
         <div className="flex items-center gap-3">
-          <span
-            aria-hidden
-            className="flex size-10 items-center justify-center rounded-lg bg-white font-display text-xl font-bold text-primary-600"
-          >
-            S
+          {/* On a white tile: the mark is green itself, and green on green reads as a
+              smudge. */}
+          <span className="flex size-10 items-center justify-center rounded-lg bg-white p-1">
+            <Image src="/app-icon.webp" alt="" width={72} height={72} className="size-full rounded-md" priority />
           </span>
           <span className="font-display text-lg font-semibold">StoreVendor</span>
         </div>

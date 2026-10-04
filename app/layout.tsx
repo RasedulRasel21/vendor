@@ -16,6 +16,7 @@ const jakarta = Plus_Jakarta_Sans({
 export const metadata: Metadata = {
   title: "StoreVendor Vendor Portal",
   description: "Manage your products, orders, and earnings as a StoreVendor vendor.",
+  icons: { icon: "/app-icon.webp", apple: "/app-icon.webp" },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
