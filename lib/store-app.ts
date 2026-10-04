@@ -379,6 +379,35 @@ export async function agreementOwed(vendorId: string): Promise<OwedAgreement | n
   return (result?.owed as OwedAgreement | undefined) ?? null;
 }
 
+// A vendor renaming their own shop. The name goes on their products in Shopify, which
+// only the store app can write, so it can't be saved here like the rest of the profile.
+export async function renameShop(
+  vendorId: string,
+  name: string,
+  actor: string,
+): Promise<{ ok: true; warning?: string } | { errors: Record<string, string> } | { error: string }> {
+  const config = bridge();
+  if (!config) return { error: "The store couldn't be reached. Try again in a moment." };
+
+  try {
+    const response = await fetch(`${config.appUrl}/api/portal/profile`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-storevendor-secret": config.secret },
+      body: JSON.stringify({ vendorId, name, actor, intent: "rename" }),
+      cache: "no-store",
+    });
+    const result = (await response.json().catch(() => null)) as Record<string, unknown> | null;
+
+    if (result?.ok === true) return { ok: true, warning: (result.warning as string) ?? undefined };
+    if (result?.errors) return { errors: result.errors as Record<string, string> };
+    return { error: (result?.error as string) ?? "That couldn't be saved. Try again." };
+  } catch (error) {
+    const { reportError } = await import("@/lib/report-error");
+    await reportError(error, { context: "bridge:rename", vendorId });
+    return { error: "The store couldn't be reached. Try again in a moment." };
+  }
+}
+
 export type SignedAgreement = {
   id: string;
   version: number;

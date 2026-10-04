@@ -9,11 +9,13 @@ import { validatePayout } from "@/lib/payout";
 import { notifyByEmail } from "@/lib/notify";
 import { requireVendorUser } from "@/lib/session";
 import { isUploadedImageUrl } from "@/lib/uploads";
-import { saveTaxDetails, stripeOnboardingUrl, stripeStatus } from "@/lib/store-app";
+import { renameShop, saveTaxDetails, stripeOnboardingUrl, stripeStatus } from "@/lib/store-app";
 import { redirect } from "next/navigation";
 
 export type SettingsFormState = {
   ok?: boolean;
+  // Saved, but something after the save didn't go to plan and the seller should know.
+  warning?: string;
   errors?: Record<string, string>;
 };
 
@@ -289,4 +291,25 @@ export async function saveProfile(
 
   revalidatePath("/settings");
   return { ok: true };
+}
+
+// The shop's own name, changed by the seller. Saved straight away like the rest of their
+// profile: only payout details wait for the store, because only those move money. It goes
+// through the store app because the name is written on their products in Shopify too.
+export async function saveShopName(
+  _previousState: SettingsFormState,
+  formData: FormData,
+): Promise<SettingsFormState> {
+  const user = await requireVendorUser();
+  if (user.role !== "OWNER") {
+    return { errors: { name: "Only the account owner can change the shop's name." } };
+  }
+
+  const result = await renameShop(user.vendorId, field(formData, "name"), `vendor_user:${user.id}`);
+  if ("errors" in result) return { errors: result.errors };
+  if ("error" in result) return { errors: { name: result.error } };
+
+  revalidatePath("/settings");
+  revalidatePath("/dashboard");
+  return { ok: true, warning: result.warning };
 }

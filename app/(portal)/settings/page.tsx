@@ -13,6 +13,7 @@ import { primaryButtonClass, secondaryButtonClass } from "@/lib/ui";
 import { ContactForm } from "./contact-form";
 import { PayoutForm } from "./payout-form";
 import { ProfileForm } from "./profile-form";
+import { ShopNameForm } from "./shop-name-form";
 import { TeamCard, type Teammate } from "./team-card";
 import { ShippingForm } from "./shipping-form";
 import { shippingSettings } from "@/lib/store-app";
@@ -107,13 +108,27 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
     <div className="max-w-3xl space-y-6">
       <PageHeader title="Settings" description="Your contact details and where the store sends your earnings." />
 
-      <Card title="Store profile" description="Contact the store to change your business name or sign-in email.">
-        <DetailRows
-          rows={[
-            { label: "Business name", value: vendor.name },
-            { label: "Sign-in email", value: user.email },
-          ]}
-        />
+      <Card
+        title="Your shop"
+        description={
+          isOwner
+            ? "Your name is yours to change. Contact the store to change your sign-in email."
+            : "Contact the store, or your account owner, to change these."
+        }
+      >
+        {isOwner ? (
+          <div className="space-y-4">
+            <ShopNameForm current={vendor.name} />
+            <DetailRows rows={[{ label: "Sign-in email", value: user.email }]} />
+          </div>
+        ) : (
+          <DetailRows
+            rows={[
+              { label: "Shop name", value: vendor.name },
+              { label: "Sign-in email", value: user.email },
+            ]}
+          />
+        )}
       </Card>
 
       <Card
