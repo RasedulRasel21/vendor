@@ -22,7 +22,8 @@ export default async function PortalLayout({ children }: { children: React.React
 
   return (
     <PortalShell
-      storeName={user.Vendor.name}
+      vendorName={user.Vendor.name}
+      logoUrl={user.Vendor.logoUrl}
       userName={user.name ?? user.email}
       userEmail={user.email}
       productsNeedingChanges={productsNeedingChanges}

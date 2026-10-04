@@ -2,6 +2,7 @@
 
 import { House, LogOut, Menu, Package, Plus, Settings, Truck, Wallet, X } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { signOut } from "@/app/(portal)/sign-out";
@@ -14,7 +15,17 @@ const NAV = [
   { href: "/settings", label: "Settings", icon: Settings },
 ] as const;
 
-function BrandMark({ name }: { name: string }) {
+// The seller's own logo if they have uploaded one, and their initial until they do.
+// Unoptimized because these are uploaded to blob storage, not bundled with the app.
+function BrandMark({ name, logoUrl }: { name: string; logoUrl: string | null }) {
+  if (logoUrl) {
+    return (
+      <span className="relative size-9 shrink-0 overflow-hidden rounded-lg bg-white ring-1 ring-zinc-200">
+        <Image src={logoUrl} alt="" fill sizes="36px" className="object-cover" unoptimized />
+      </span>
+    );
+  }
+
   return (
     <span
       aria-hidden
@@ -26,14 +37,17 @@ function BrandMark({ name }: { name: string }) {
 }
 
 export function PortalShell({
-  storeName,
+  vendorName,
+  logoUrl,
   userName,
   userEmail,
   productsNeedingChanges,
   newOrders,
   children,
 }: {
-  storeName: string;
+  // The seller's own name and logo: this is their shop's portal, not the merchant's.
+  vendorName: string;
+  logoUrl: string | null;
   userName: string;
   userEmail: string;
   productsNeedingChanges: number;
@@ -58,8 +72,8 @@ export function PortalShell({
     <div className="min-h-dvh lg:grid lg:grid-cols-[16rem_minmax(0,1fr)]">
       <header className="sticky top-0 z-30 flex h-14 items-center justify-between bg-white/90 px-4 shadow-[0_1px_8px_rgb(19_27_46/0.06)] backdrop-blur print:hidden lg:hidden">
         <div className="flex min-w-0 items-center gap-2.5">
-          <BrandMark name={storeName} />
-          <span className="truncate font-display font-semibold">{storeName}</span>
+          <BrandMark name={vendorName} logoUrl={logoUrl} />
+          <span className="truncate font-display font-semibold">{vendorName}</span>
         </div>
         <button
           type="button"
@@ -85,9 +99,9 @@ export function PortalShell({
       >
         <div className="flex h-16 items-center justify-between gap-2 px-4">
           <div className="flex min-w-0 items-center gap-2.5">
-            <BrandMark name={storeName} />
+            <BrandMark name={vendorName} logoUrl={logoUrl} />
             <div className="min-w-0">
-              <p className="truncate font-display font-semibold leading-tight text-zinc-900">{storeName}</p>
+              <p className="truncate font-display font-semibold leading-tight text-zinc-900">{vendorName}</p>
               <p className="text-xs text-zinc-500">Vendor portal</p>
             </div>
           </div>
